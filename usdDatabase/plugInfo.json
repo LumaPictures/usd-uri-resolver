@@ -1,0 +1,27 @@
+{
+  "Plugins": [
+    {
+      "Info": {
+        "Types": {
+          "UsdDatabaseFileFormat": {
+            "bases": [
+              "SdfFileFormat"
+            ],
+            "displayName": "Database access to things",
+            "extensions": [
+              "db"
+            ],
+            "formatId": "db",
+            "primary": true,
+            "target": "usd"
+          }
+        }
+      },
+      "LibraryPath": "@PLUG_INFO_LIBRARY_PATH@",
+      "Name": "usdDatabase",
+      "ResourcePath": "@PLUG_INFO_LIBRARY_PATH@",
+      "Root": "@PLUG_INFO_LIBRARY_PATH@",
+      "Type": "library"
+    }
+  ]
+}
