@@ -14,7 +14,7 @@ target_link_libraries(${PLUGIN_NAME} tf gf sdf usd usdGeom)
 
 # does it need to be in the usd subfolder?
 install(TARGETS ${PLUGIN_NAME}
-        DESTINATION usd/)
+        DESTINATION .)
 
 install(FILES plugInfo.json
-        DESTINATION usd/usdDatabase/resources/)
+        DESTINATION usdDatabase/resources/)
