@@ -11,7 +11,6 @@ link_directories($ENV{USD_ROOT}/lib)
 add_library(${PLUGIN_NAME} SHARED fileFormat.cpp)
 set_target_properties(${PLUGIN_NAME} PROPERTIES PREFIX "")
 target_link_libraries(${PLUGIN_NAME} tf gf sdf usd usdGeom)
-set_target_properties(${PLUGIN_NAME} PROPERTIES INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 # does it need to be in the usd subfolder?
 install(TARGETS ${PLUGIN_NAME}
