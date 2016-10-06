@@ -7,7 +7,7 @@
 #include <iostream>
 
 #define USDDATABASE_FILE_FORMAT_TOKENS  \
-    ((Id,      "db"))                   \
+    ((Id,      "dba"))                   \
     ((Version, "1.0"))                  \
     ((Target,  "usd"))
 
@@ -31,27 +31,30 @@ public:
                               bool metadataOnly) const
     {
         std::cerr << "Trying to read from file : " << filePath << std::endl;
-        return false;
+        return true;
     }
 
     virtual bool ReadFromString(const SdfLayerBasePtr& layerBase,
                                 const std::string& str) const
     {
-        return false;
+        std::cerr << "Read from string" << std::endl;
+        return true;
     }
 
     virtual bool WriteToString(const SdfLayerBase* layerBase,
                                std::string* str,
                                const std::string& comment=std::string()) const
     {
-        return false;
+        std::cerr << "Write to string" << std::endl;
+        return true;
     }
 
     virtual bool WriteToStream(const SdfSpecHandle &spec,
                                std::ostream& out,
                                size_t indent) const
     {
-        return false;
+        std::cerr << "Write to stream" << std::endl;
+        return true;
     }
 
 protected:
@@ -59,7 +62,8 @@ protected:
 
     virtual bool _IsStreamingLayer(const SdfLayerBase& layer) const
     {
-        return false;
+        std::cerr << "Is streaming layer?" << std::endl;
+        return true;
     }
 
     virtual ~UsdDatabaseFileFormat()

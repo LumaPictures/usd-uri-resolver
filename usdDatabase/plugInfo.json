@@ -9,9 +9,9 @@
             ],
             "displayName": "Database access to things",
             "extensions": [
-              "db"
+              "dba"
             ],
-            "formatId": "db",
+            "formatId": "dba",
             "primary": true,
             "target": "usd"
           }
@@ -19,8 +19,8 @@
       },
       "LibraryPath": "@PLUG_INFO_LIBRARY_PATH@",
       "Name": "usdDatabase",
-      "ResourcePath": "@PLUG_INFO_LIBRARY_PATH@",
-      "Root": "@PLUG_INFO_LIBRARY_PATH@",
+      "ResourcePath": "@PLUG_INFO_RESOURCE_PATH@",
+      "Root": "@PLUG_INFO_ROOT@",
       "Type": "library"
     }
   ]
