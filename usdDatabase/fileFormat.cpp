@@ -9,7 +9,6 @@ TF_DEFINE_PUBLIC_TOKENS(
 
 TF_REGISTRY_FUNCTION(TfType)
 {
-    std::cerr << "Yay!" << std::endl;
     SDF_DEFINE_FILE_FORMAT(UsdDatabaseFileFormat, SdfFileFormat);
 }
 

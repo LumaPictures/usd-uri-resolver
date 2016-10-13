@@ -1,0 +1,20 @@
+{
+  "Plugins": [
+    {
+      "Info": {
+        "Types": {
+          "databaseResolver": {
+            "bases": [
+              "ArResolver"
+            ]
+          }
+        }
+      },
+      "LibraryPath": "../databaseResolver.so",
+      "Name": "databaseResolver",
+      "ResourcePath": "resources",
+      "Root": "..",
+      "Type": "library"
+    }
+  ]
+}
