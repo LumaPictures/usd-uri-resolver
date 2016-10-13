@@ -20,50 +20,29 @@ class UsdDatabaseFileFormat : public SdfFileFormat {
 public:
 
     // SdfFileFormat overrides.
-    virtual bool CanRead(const std::string &file) const
-    {
-        return true;
-    }
+    virtual bool CanRead(const std::string &file) const;
 
     virtual bool ReadFromFile(const SdfLayerBasePtr& layerBase,
                               const std::string& filePath,
-                              bool metadataOnly) const
-    {
-        return true;
-    }
+                              bool metadataOnly) const;
 
     virtual bool ReadFromString(const SdfLayerBasePtr& layerBase,
-                                const std::string& str) const
-    {
-        return true;
-    }
+                                const std::string& str) const;
 
     virtual bool WriteToString(const SdfLayerBase* layerBase,
                                std::string* str,
-                               const std::string& comment=std::string()) const
-    {
-        return true;
-    }
+                               const std::string& comment=std::string()) const;
 
     virtual bool WriteToStream(const SdfSpecHandle &spec,
                                std::ostream& out,
-                               size_t indent) const
-    {
-        return true;
-    }
+                               size_t indent) const;
 
 protected:
     SDF_FILE_FORMAT_FACTORY_ACCESS;
 
-    virtual bool _IsStreamingLayer(const SdfLayerBase& layer) const
-    {
-        return true;
-    }
+    virtual bool _IsStreamingLayer(const SdfLayerBase& layer) const;
 
-    virtual ~UsdDatabaseFileFormat()
-    {
-
-    }
+    virtual ~UsdDatabaseFileFormat();
 
     UsdDatabaseFileFormat();
 };
