@@ -22,7 +22,6 @@ public:
     // SdfFileFormat overrides.
     virtual bool CanRead(const std::string &file) const
     {
-        std::cerr << "Checking if can read!" << file << std::endl;
         return true;
     }
 
@@ -30,14 +29,12 @@ public:
                               const std::string& filePath,
                               bool metadataOnly) const
     {
-        std::cerr << "Trying to read from file : " << filePath << std::endl;
         return true;
     }
 
     virtual bool ReadFromString(const SdfLayerBasePtr& layerBase,
                                 const std::string& str) const
     {
-        std::cerr << "Read from string" << std::endl;
         return true;
     }
 
@@ -45,7 +42,6 @@ public:
                                std::string* str,
                                const std::string& comment=std::string()) const
     {
-        std::cerr << "Write to string" << std::endl;
         return true;
     }
 
@@ -53,7 +49,6 @@ public:
                                std::ostream& out,
                                size_t indent) const
     {
-        std::cerr << "Write to stream" << std::endl;
         return true;
     }
 
@@ -62,7 +57,6 @@ protected:
 
     virtual bool _IsStreamingLayer(const SdfLayerBase& layer) const
     {
-        std::cerr << "Is streaming layer?" << std::endl;
         return true;
     }
 

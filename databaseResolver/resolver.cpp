@@ -146,7 +146,7 @@ _Resolve(
         // and fix up all the callers to accommodate this.
         resolvedPath = TfStringCatPaths(anchorPath, path);
     }
-    return TfPathExists(resolvedPath) ? resolvedPath : std::string();
+    return resolvedPath;
 }
 
 std::string
