@@ -25,18 +25,6 @@ public:
     virtual bool ReadFromFile(const SdfLayerBasePtr& layerBase,
                               const std::string& filePath,
                               bool metadataOnly) const;
-
-    virtual bool ReadFromString(const SdfLayerBasePtr& layerBase,
-                                const std::string& str) const;
-
-    virtual bool WriteToString(const SdfLayerBase* layerBase,
-                               std::string* str,
-                               const std::string& comment=std::string()) const;
-
-    virtual bool WriteToStream(const SdfSpecHandle &spec,
-                               std::ostream& out,
-                               size_t indent) const;
-
 protected:
     SDF_FILE_FORMAT_FACTORY_ACCESS;
 
