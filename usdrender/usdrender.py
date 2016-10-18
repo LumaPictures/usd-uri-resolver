@@ -8,7 +8,6 @@ from OpenGL.raw._GLX import struct__XDisplay
 from Xlib import X as x
 from Xlib import display
 from ctypes import *
-import time
 import OpenImageIO as oiio
 import sys
 import array
@@ -58,6 +57,8 @@ def export_image(output_filename, width, height):
         print 'Could not open ', output_filename
         sys.exit(0)
 
+    # TODO: write a minimalistic c++ plug for this
+    # we are wasting tons of time here
     output.write_image(array.array('f', data.flatten().tolist()))
     output.close()
 
@@ -107,8 +108,15 @@ if __name__ == '__main__':
         help = 'USD file to render.'
     )
     args = parser.parse_args()
-    from pxr import Work
+
+    from pxr import Work, Usd, Ar
     Work.SetConcurrencyLimitArgument(args.numthreads)
+
+    stage = Usd.Stage.Open(
+        args.usdfile,
+        Ar.GetResolver().CreateDefaultContextForAsset(args.usdfile),
+        Usd.Stage.LoadAll
+    )
 
     ctx, wid, dp = create_window_and_context(args.width, args.height)
 
