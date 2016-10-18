@@ -14,19 +14,15 @@ import sys
 import array
 import numpy
 
+# we are creating an actual window here, and there is a good reason for that
+# if you are using windowless opengl, you have to manually setup renderbuffers
+# which can potentially mess up hydra's own renderbuffer usage
+# so making that compatible with hydra is more hassle than creating a dummy
+# window that just display the rendered frames while doing the rendered
+# Note the glXCreateWindowContext failed with an invalid parameter
+# so I'm just using the CreateNewContext directly
 # http://stackoverflow.com/questions/14933584/how-do-i-use-the-xlib-and-opengl-modules-together-with-python
-if __name__ == '__main__':
-    #from pxr import Work
-    #Work.SetConcurrencyLimitArgument(0)
-    # we are creating an actual window here, and there is a good reason for that
-    # if you are using windowless opengl, you have to manually setup renderbuffers
-    # which can potentially mess up hydra's own renderbuffer usage
-    # so making that compatible with hydra is more hassle than creating a dummy
-    # window that just display the rendered frames while doing the rendered
-    width = 512
-    height = 512
-    output_filename = '/home/palm/test.png'
-
+def create_window_and_context(width, height):
     pd = display.Display()
     sc = pd.screen()
     pw = sc.root.create_window(0, 0, width, height, 2,
@@ -44,28 +40,14 @@ if __name__ == '__main__':
 
     elements = c_int()
     configs = glx.glXChooseFBConfig(d, 0, None, byref(elements))
-    # this will fail with an invalid parameter all the time for some reason
-    #w = glx.glXCreateWindow(d, configs[0], c_ulong(xid), None)
     context = glx.glXCreateNewContext(d, configs[0], glx.GLX_RGBA_TYPE, None, True)
-    #glx.glXMakeContextCurrent(d, w, w, context)
-    glx.glXMakeCurrent(d, xid, context)
 
-    gl.glViewport(0, 0, width, height)
+    return (context, xid, d)
 
-    # test python opengl code
-    gl.glShadeModel(gl.GL_FLAT)
-    gl.glClearColor(0.5, 0.5, 0.5, 1.0)
-    gl.glViewport(0, 0, 200, 200)
-    gl.glMatrixMode(gl.GL_PROJECTION)
-    gl.glLoadIdentity()
-    gl.glOrtho(-1.0, 1.0, -1.0, 1.0, -1.0, 1.0)
-    gl.glClear(gl.GL_COLOR_BUFFER_BIT)
-    gl.glColor3f(1.0, 1.0, 0.0)
-    gl.glRectf(-0.8, -0.8, 0.8, 0.8)
+def export_image(output_filename, width, height):
+    data = gl.glReadPixels(0, 0, args.width, args.height, gl.GL_RGB, gl.GL_FLOAT, outputType = None)
 
-    data = gl.glReadPixels(0, 0, width, height, gl.GL_RGB, gl.GL_FLOAT, outputType = None)
-
-    outspec = oiio.ImageSpec(width, height, 3, oiio.FLOAT)
+    outspec = oiio.ImageSpec(args.width, args.height, 3, oiio.FLOAT)
     output = oiio.ImageOutput.create(output_filename)
     if output == None:
         print 'Error creating the output for ', output_filename
@@ -79,7 +61,75 @@ if __name__ == '__main__':
     output.write_image(array.array('f', data.flatten().tolist()))
     output.close()
 
-    # swap buffers, by default things are double buffered
-    glx.glXSwapBuffers(d, xid)
+if __name__ == '__main__':
+    import argparse
+    parser = argparse.ArgumentParser(description='''
+    Rendering a sequence of images using usdImaging.
+    ''')
+    parser.add_argument(
+        '--width', dest = 'width', type = int, action = 'store',
+        default = 512, help = 'Width of the rendered image.'
+    )
+    parser.add_argument(
+        '--height', dest = 'height', type = int, action = 'store',
+        default = 512, help = 'Height of the rendered image.'
+    )
+    parser.add_argument(
+        '--output', '-o', dest = 'output', type = str, action = 'store',
+        default = 'output_%04d.png', help = 'Output path, including frame number formatting.'
+    )
+    parser.add_argument(
+        '--firstframe', '-ff', dest = 'firstframe', type = int, action = 'store',
+        default = 1, help = 'First frame of the rendered sequence'
+    )
+    parser.add_argument(
+        '--lastframe', '-lf', dest = 'lastframe', type = int, action = 'store',
+        default = 1, help = 'First frame of the rendered sequence'
+    )
+    parser.add_argument(
+        '--numThreads', '-n', dest = 'numthreads', type = int, action = 'store',
+        default = 0, help = 'Number of threads used for processing.'
+    )
+    parser.add_argument(
+        '--select', '-s', dest = 'select', type = str, action = 'store',
+        default = '/', help = 'Select a prim to render.'
+    )
+    parser.add_argument(
+        '--camera', '-c', dest = 'camera', type = str, action = 'store',
+        default = '', help = 'Camera to render from.'
+    )
+    parser.add_argument(
+        '--complexity', dest = 'complexity', type = float, action = 'store',
+        default = 1.0, help = 'Subdivision complexity. [1.0, 2.0]'
+    )
+    parser.add_argument(
+        'usdfile', type = str, action = 'store',
+        help = 'USD file to render.'
+    )
+    args = parser.parse_args()
+    from pxr import Work
+    Work.SetConcurrencyLimitArgument(args.numthreads)
 
-    time.sleep(5)
+    ctx, wid, dp = create_window_and_context(args.width, args.height)
+
+    glx.glXMakeCurrent(dp, wid, ctx)
+    gl.glViewport(0, 0, args.width, args.height)
+
+    import random
+    random.seed(42)
+
+    for frame in range(args.firstframe, args.lastframe + 1):
+        # drawing something for testing
+        gl.glShadeModel(gl.GL_FLAT)
+        gl.glClearColor(0.5, 0.5, 0.5, 1.0)
+        gl.glMatrixMode(gl.GL_PROJECTION)
+        gl.glLoadIdentity()
+        gl.glOrtho(-1.0, 1.0, -1.0, 1.0, -1.0, 1.0)
+        gl.glClear(gl.GL_COLOR_BUFFER_BIT)
+        gl.glColor3f(1.0, 1.0, 0.0)
+        gl.glRectf(random.uniform(-1.0, 0.0), random.uniform(-1.0, 0.0),
+                   random.uniform(0.0, 1.0), random.uniform(0.0, 1.0))
+
+        export_image(args.output % frame, args.width, args.height)
+        # swap buffers, by default things are double buffered
+        glx.glXSwapBuffers(dp, wid)
