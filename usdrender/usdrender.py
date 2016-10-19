@@ -143,9 +143,6 @@ if __name__ == '__main__':
     render_params.enableHardwareShading = True
     render_params.displayImagePlanes = False
 
-    import random
-    random.seed(42)
-
     target_aspect = float(args.width) / max(1.0, args.height)
 
     gl.glShadeModel(gl.GL_SMOOTH)
