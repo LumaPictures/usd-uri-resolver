@@ -9,9 +9,11 @@ from Xlib import X as x
 from Xlib import display
 from ctypes import *
 import OpenImageIO as oiio
-import sys
+import sys, os
 import array
 import numpy
+from math import *
+from pxr import Work, Usd, UsdGeom, Ar, Sdf, UsdImagingGL, Gf, Glf, CameraUtil
 
 # we are creating an actual window here, and there is a good reason for that
 # if you are using windowless opengl, you have to manually setup renderbuffers
@@ -45,22 +47,12 @@ def create_window_and_context(width, height):
 
 def export_image(output_filename, width, height):
     data = gl.glReadPixels(0, 0, args.width, args.height, gl.GL_RGB, gl.GL_FLOAT, outputType = None)
-
     outspec = oiio.ImageSpec(args.width, args.height, 3, oiio.FLOAT)
-    output = oiio.ImageOutput.create(output_filename)
-    if output == None:
-        print 'Error creating the output for ', output_filename
-        sys.exit(0)
-
-    ok = output.open(output_filename, outspec, oiio.Create)
-    if not ok:
-        print 'Could not open ', output_filename
-        sys.exit(0)
-
-    # TODO: write a minimalistic c++ plug for this
-    # we are wasting tons of time here
-    output.write_image(array.array('f', data.flatten().tolist()))
-    output.close()
+    buf = oiio.ImageBuf(outspec)
+    buf.set_pixels(oiio.ROI(0, width, 0, height, 0, 1, 0, 3), array.array('f', data.flatten().tolist()))
+    buf_flipped = oiio.ImageBuf(outspec)
+    oiio.ImageBufAlgo.flip(buf_flipped, buf)
+    buf_flipped.write(output_filename)
 
 if __name__ == '__main__':
     import argparse
@@ -80,11 +72,11 @@ if __name__ == '__main__':
         default = 'output_%04d.png', help = 'Output path, including frame number formatting.'
     )
     parser.add_argument(
-        '--firstframe', '-ff', dest = 'firstframe', type = int, action = 'store',
+        '--firstframe', '--ff', '-ff', dest = 'firstframe', type = int, action = 'store',
         default = 1, help = 'First frame of the rendered sequence'
     )
     parser.add_argument(
-        '--lastframe', '-lf', dest = 'lastframe', type = int, action = 'store',
+        '--lastframe', '--lf', '-lf', dest = 'lastframe', type = int, action = 'store',
         default = 1, help = 'First frame of the rendered sequence'
     )
     parser.add_argument(
@@ -104,39 +96,92 @@ if __name__ == '__main__':
         default = 1.0, help = 'Subdivision complexity. [1.0, 2.0]'
     )
     parser.add_argument(
+        '--renderer', '-r', dest = 'renderer', type = str, action = 'store',
+        choices = ['opt', 'simple'], default = 'opt', help = 'Which renderer to use.'
+    )
+    parser.add_argument(
         'usdfile', type = str, action = 'store',
         help = 'USD file to render.'
     )
     args = parser.parse_args()
+    if args.renderer == 'simple':
+        os.environ['HD_ENABLED'] = '0'
 
-    from pxr import Work, Usd, Ar
+
     Work.SetConcurrencyLimitArgument(args.numthreads)
 
+    # TODO: don't load up all the stage upfront
     stage = Usd.Stage.Open(
         args.usdfile,
         Ar.GetResolver().CreateDefaultContextForAsset(args.usdfile),
         Usd.Stage.LoadAll
     )
 
+    # this is mandatory
+    camera_prim = stage.GetPrimAtPath(Sdf.Path(args.camera))
+    render_root = stage.GetPrimAtPath(Sdf.Path(args.select))
+
     ctx, wid, dp = create_window_and_context(args.width, args.height)
 
     glx.glXMakeCurrent(dp, wid, ctx)
     gl.glViewport(0, 0, args.width, args.height)
 
+    # initializing renderer
+    Glf.GlewInit()
+    Glf.RegisterDefaultDebugOutputMessageCallback()
+    renderer = UsdImagingGL.GL()
+    render_params = UsdImagingGL.GL.RenderParams()
+    render_params.complexity = 1.0
+    render_params.drawMode = UsdImagingGL.GL.DrawMode.DRAW_SHADED_SMOOTH
+    render_params.showGuides = True
+    render_params.showRenderGuides
+    render_params.cullStyle = UsdImagingGL.GL.CullStyle.CULL_STYLE_BACK_UNLESS_DOUBLE_SIDED
+    render_params.enableIdRender = False
+    render_params.gammaCorrectColors = False
+    render_params.enableSampleAlphaToCoverage = False
+    render_params.highlight = False
+    render_params.enableHardwareShading = True
+    render_params.displayImagePlanes = False
+
     import random
     random.seed(42)
 
+    target_aspect = float(args.width) / max(1.0, args.height)
+
+    gl.glShadeModel(gl.GL_SMOOTH)
+
+    gl.glEnable(gl.GL_DEPTH_TEST)
+    gl.glDepthFunc(gl.GL_LESS)
+
+    gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
+    gl.glEnable(gl.GL_BLEND)
+    gl.glColor3f(1.0, 1.0, 1.0)
+    gl.glMaterialfv(gl.GL_FRONT_AND_BACK, gl.GL_AMBIENT, (0.2, 0.2, 0.2, 1.0))
+    gl.glMaterialfv(gl.GL_FRONT_AND_BACK, gl.GL_SPECULAR, (0.5, 0.5, 0.5, 1.0))
+    gl.glMaterialfv(gl.GL_FRONT_AND_BACK, gl.GL_SHININESS, 32.0)
+
     for frame in range(args.firstframe, args.lastframe + 1):
-        # drawing something for testing
-        gl.glShadeModel(gl.GL_FLAT)
-        gl.glClearColor(0.5, 0.5, 0.5, 1.0)
-        gl.glMatrixMode(gl.GL_PROJECTION)
-        gl.glLoadIdentity()
-        gl.glOrtho(-1.0, 1.0, -1.0, 1.0, -1.0, 1.0)
-        gl.glClear(gl.GL_COLOR_BUFFER_BIT)
-        gl.glColor3f(1.0, 1.0, 0.0)
-        gl.glRectf(random.uniform(-1.0, 0.0), random.uniform(-1.0, 0.0),
-                   random.uniform(0.0, 1.0), random.uniform(0.0, 1.0))
+        render_params.frame = frame
+        render_params.forceRefresh = True
+        camera = UsdGeom.Camera(camera_prim).GetCamera(frame, False)
+        CameraUtil.ConformWindow(camera, CameraUtil.MatchVertically, target_aspect)
+        frustum = camera.frustum
+        renderer.SetCameraState(
+            frustum.ComputeViewMatrix(),
+            frustum.ComputeProjectionMatrix(),
+            Gf.Vec4d(0, 0, args.width, args.height)
+        )
+        render_params.clipPlanes = [Gf.Vec4d(i) for i in camera.clippingPlanes]
+        cam_pos = frustum.position
+        gl.glEnable(gl.GL_LIGHTING)
+        gl.glEnable(gl.GL_LIGHT0)
+        gl.glLightfv(gl.GL_LIGHT0, gl.GL_POSITION, (cam_pos[0], cam_pos[1], cam_pos[2], 1))
+        gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
+
+        renderer.SetLightingStateFromOpenGL()
+        renderer.Render(render_root, render_params)
+
+        gl.glFlush()
 
         export_image(args.output % frame, args.width, args.height)
         # swap buffers, by default things are double buffered
