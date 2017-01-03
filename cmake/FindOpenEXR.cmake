@@ -47,6 +47,7 @@ elseif (UNIX)
             "${OPENEXR_LOCATION}"
             "$ENV{OPENEXR_LOCATION}"
             "${OPENEXR_BASE_DIR}"
+            /usr/lib/x86_64-linux-gnu
         PATH_SUFFIXES
             lib/
         DOC
