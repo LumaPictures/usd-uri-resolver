@@ -26,6 +26,7 @@
 #include "pxr/usd/ar/assetInfo.h"
 #include "pxr/usd/ar/resolverContext.h"
 
+#include "pxr/base/arch/fileSystem.h"
 #include "pxr/base/arch/systemInfo.h"
 #include "pxr/base/tf/getenv.h"
 #include "pxr/base/tf/fileUtils.h"
@@ -226,6 +227,26 @@ databaseResolver::UpdateAssetInfo(
             resolveInfo->version = fileVersion;
         }
     }
+}
+
+VtValue
+GetModificationTimestamp(
+    const std::string& path,
+    const std::string& resolvedPath)
+{
+    struct stat fileInfo;
+    if (stat(resolvedPath.c_str(), &fileInfo) == 0) {
+        return VtValue(ArchGetModificationTime(fileInfo));
+    }
+    return VtValue();
+}
+
+bool
+FetchToLocalResolvedPath(
+    const std::string& path,
+    const std::string& resolvedPath)
+{
+    return true;
 }
 
 bool

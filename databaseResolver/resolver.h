@@ -76,6 +76,14 @@ public:
         const std::string& fileVersion,
         ArAssetInfo* assetInfo);
 
+    virtual VtValue GetModificationTimestamp(
+        const std::string& path,
+        const std::string& resolvedPath);
+
+    virtual bool FetchToLocalResolvedPath(
+        const std::string& path,
+        const std::string& resolvedPath);
+
     virtual bool CanWriteLayerToPath(
         const std::string& path,
         std::string* whyNot);
