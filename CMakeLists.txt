@@ -11,4 +11,4 @@ if (ENABLE_RESOLVER_BUILD)
 endif ()
 
 install(FILES plugInfo.json
-        DESTINATION ./)
+        DESTINATION .)
