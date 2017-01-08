@@ -3,15 +3,15 @@
     {
       "Info": {
         "Types": {
-          "databaseResolver": {
+          "uberResolver": {
             "bases": [
               "ArResolver"
             ]
           }
         }
       },
-      "LibraryPath": "../databaseResolver.so",
-      "Name": "databaseResolver",
+      "LibraryPath": "../uberResolver.so",
+      "Name": "uberResolver",
       "ResourcePath": "resources",
       "Root": "..",
       "Type": "library"

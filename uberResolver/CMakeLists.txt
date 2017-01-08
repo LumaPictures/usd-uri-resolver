@@ -1,4 +1,4 @@
-set(PLUGIN_NAME databaseResolver)
+set(PLUGIN_NAME uberResolver)
 
 find_package(Boost)
 find_package(PythonLibs)

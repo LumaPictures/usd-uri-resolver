@@ -21,29 +21,19 @@
 // KIND, either express or implied. See the Apache License for the specific
 // language governing permissions and limitations under the Apache License.
 //
-#ifndef AR_DATABASE_RESOLVER_H
-#define AR_DATABASE_RESOLVER_H
+#include "resolver.h"
 
-#include "pxr/usd/ar/defaultResolver.h"
+#include "pxr/usd/ar/assetInfo.h"
+#include "pxr/usd/ar/resolverContext.h"
 
-#include <tbb/enumerable_thread_specific.h>
+#include <pxr/usd/ar/defineResolver.h>
 
-#include <memory>
-#include <string>
-#include <vector>
+AR_DEFINE_RESOLVER(uberResolver, ArResolver)
 
-/// \class databaseResolver
-///
-/// A simple resolver that's built on top of the default resolver
-/// but works together with the databse plugin by accepting files
-/// that does not exists on the dist.
-///
-class databaseResolver
-    : public ArDefaultResolver
+uberResolver::uberResolver() : ArDefaultResolver()
 {
-public:
-    databaseResolver();
-    virtual ~databaseResolver();
-};
+}
 
-#endif // AR_DEFAULT_RESOLVER_H
+uberResolver::~uberResolver()
+{
+}
