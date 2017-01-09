@@ -36,16 +36,17 @@
 
 namespace {
     constexpr const char* placeholderURI = "sphere://";
-    const char* placeholderAsset = R"usd(
-#usda 1.0
+    const char* placeholderAsset = R"usd(#usda 1.0
+(
+    defaultPrim = "hello"
+)
 
 def Xform "hello"
 {
     def Sphere "world"
     {
     }
-}
-    )usd";
+})usd";
 
     // Temp solution
     std::mutex g_resolvedNamesMutex;
