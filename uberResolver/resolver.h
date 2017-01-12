@@ -11,8 +11,7 @@
 
 /// \class uberResolver
 ///
-/// A generic resolver, which can load up resolver plugins and assign them to
-/// predefined URIs.
+/// Generic resolver to handle Luma needs.
 ///
 class uberResolver
     : public ArDefaultResolver
