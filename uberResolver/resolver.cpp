@@ -66,11 +66,12 @@ namespace {
         }
     };
 
-    template <typename key_t, typename value_t, value_t default_value = value_t()>
-    value_t find_in_sorted_vector(const std::vector<std::pair<key_t, value_t>>& vec, const key_t& key) {
-        const auto ret = std::lower_bound(vec.begin(), vec.end(), std::pair<key_t, value_t>{key, default_value},
-                                          [](const std::pair<key_t, value_t>& a,
-                                             const std::pair<key_t, value_t>& b) {
+    template <typename key_t, typename value_t,
+              value_t default_value = value_t(), typename pair_t = std::pair<key_t, value_t>>
+    value_t find_in_sorted_vector(const std::vector<pair_t>& vec, const key_t& key) {
+        const auto ret = std::lower_bound(vec.begin(), vec.end(), pair_t{key, default_value},
+                                          [](const pair_t& a,
+                                             const pair_t& b) {
             return a.first < b.first;
         });
         if (ret != vec.end() && ret->first == key) {
