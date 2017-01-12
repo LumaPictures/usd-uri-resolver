@@ -17,6 +17,7 @@
 #include <my_global.h>
 #include <my_sys.h>
 #include <mysql.h>
+#include <errmsg.h>
 
 
 /*
@@ -43,12 +44,18 @@ namespace {
         std::map<std::string, std::string> cached_queries;
         MYSQL* connection;
 
-        connection_data(const std::string& server_name) : connection(nullptr) {
-            // TODO:
+        connection_data(const std::string& server_name) : connection(mysql_init(nullptr)) {
+            const auto ret = mysql_real_connect(
+                connection, server_name.c_str(), "root", "12345678", "usd", 3306, nullptr, 0);
+            if (ret == nullptr) {
+                mysql_close(connection);
+                TF_WARN("[uberResolver] Failed to connect to : %s . \n Reason : %s",
+                        server_name.c_str(), mysql_error(connection));
+                connection = nullptr;
+            }
         }
 
         ~connection_data() {
-            sql_thread_init();
             for (const auto& cache: cached_queries) {
                 if (cache.second != "" || cache.second != "_") {
                     remove(cache.second.c_str());
@@ -58,10 +65,25 @@ namespace {
         }
 
         std::string resolve_name(const std::string& asset_path) {
+            if (connection == nullptr) {
+                return "";
+            }
+            mutex_scoped_lock sc(connection_mutex);
+            char query[1024];
+            sprintf(query, "SELECT EXISTS(SELECT * FROM headers WHERE path = \"%s\")", asset_path.c_str());
+            unsigned long query_length = strlen(query);
+            const auto ret = mysql_real_query(connection, query, query_length);
+            std::cerr << "Query return " << ret << std::endl;
+            std::cerr.flush();
+
             return "";
         }
 
         bool fetch(const std::string asset_path) {
+            if (connection == nullptr) {
+                return false;
+            }
+
             return false;
         }
     };
@@ -174,7 +196,7 @@ std::string uberResolver::ResolveWithAssetInfo(
     ArAssetInfo* assetInfo)
 {
     if (g_sql.matches_schema(path)) {
-        return g_sql.resolve_name("localhost", path);
+        return g_sql.resolve_name("127.0.0.1", path);
     } else {
         return ArDefaultResolver::ResolveWithAssetInfo(path, assetInfo);
     }
@@ -203,7 +225,7 @@ VtValue uberResolver::GetModificationTimestamp(
 bool uberResolver::FetchToLocalResolvedPath(const std::string& path, const std::string& resolvedPath)
 {
     if (g_sql.matches_schema(path)) {
-        return g_sql.fetch_asset("localhost", path);
+        return g_sql.fetch_asset("127.0.0.1", path);
     } else {
         return true;
     }
