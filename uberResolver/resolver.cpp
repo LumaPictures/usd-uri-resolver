@@ -39,6 +39,18 @@ namespace {
         std::call_once(thread_flag, [](){my_thread_init();});
     }
 
+    std::string get_env_var(const std::string& server_name, const std::string& env_var, const std::string& default_value) {
+        const auto env_first = getenv((server_name + "_" + env_var).c_str());
+        if (env_first != nullptr) {
+            return env_first;
+        }
+        const auto env_second = getenv(env_var.c_str());
+        if (env_second != nullptr) {
+            return env_second;
+        }
+        return default_value;
+    }
+
     struct SQLConnection {
         enum CacheState{
             CACHE_MISSING,
@@ -51,14 +63,23 @@ namespace {
         };
         std::mutex connection_mutex; // do we actually need this? the api should support multithreaded queries!
         std::map<std::string, Cache> cached_queries;
+        std::string table_name;
         MYSQL* connection;
 
         SQLConnection(const std::string& server_name) : connection(mysql_init(nullptr)) {
+            const auto server_user = get_env_var(server_name, "USD_SQL_USER", "root");
+            const auto server_password = get_env_var(server_name, "USD_SQL_PASSWD", "12345678");
+            const auto server_db = get_env_var(server_name, "USD_SQL_DB", "usd");
+            table_name = get_env_var(server_name, "USD_SQL_TABLE", "headers");
+            const auto server_port = static_cast<unsigned int>(
+                atoi(get_env_var(server_name, "USD_SQL_PORT", "3306").c_str()));
             const auto ret = mysql_real_connect(
-                connection, server_name.c_str(), "root", "12345678", "usd", 3306, nullptr, 0);
+                connection, server_name.c_str(),
+                server_user.c_str(), server_password.c_str(),
+                server_db.c_str(), server_port, nullptr, 0);
             if (ret == nullptr) {
                 mysql_close(connection);
-                TF_WARN("[uberResolver] Failed to connect to : %s . \n Reason : %s",
+                TF_WARN("[uberResolver] Failed to connect to: %s\nReason: %s",
                         server_name.c_str(), mysql_error(connection));
                 connection = nullptr;
             }
@@ -92,7 +113,8 @@ namespace {
             constexpr size_t query_max_length = 4096;
             char query[query_max_length];
             snprintf(query, query_max_length,
-                     "SELECT EXISTS(SELECT 1 FROM headers WHERE path = '%s')", asset_path.c_str());
+                     "SELECT EXISTS(SELECT 1 FROM %s WHERE path = '%s')",
+                     table_name.c_str(), asset_path.c_str());
             unsigned long query_length = strlen(query);
             const auto query_ret = mysql_real_query(connection, query, query_length);
             // I only have to flush when there is a successful query.
@@ -142,7 +164,8 @@ namespace {
                     constexpr size_t query_max_length = 4096;
                     char query[query_max_length];
                     snprintf(query, query_max_length,
-                             "SELECT data FROM headers WHERE path = '%s' LIMIT 1", asset_path.c_str());
+                             "SELECT data FROM %s WHERE path = '%s' LIMIT 1",
+                             table_name.c_str(), asset_path.c_str());
                     unsigned long query_length = strlen(query);
                     const auto query_ret = mysql_real_query(connection, query, query_length);
                     // I only have to flush when there is a successful query.
