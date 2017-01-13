@@ -14,6 +14,7 @@ find_library(MYSQL_CONNECTOR_LIBRARY
              HINTS ${MYSQL_CONNECTOR_ROOT}/lib)
 
 message(STATUS "MySql connector library : ${MYSQL_CONNECTOR_LIBRARY}")
+add_compile_options(-Wall)
 
 add_library(${PLUGIN_NAME} SHARED resolver.cpp)
 set_target_properties(${PLUGIN_NAME} PROPERTIES PREFIX "")
