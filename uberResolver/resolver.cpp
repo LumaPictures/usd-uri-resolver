@@ -11,6 +11,8 @@
 #include <thread>
 #include <fstream>
 #include <memory>
+#include <locale>
+#include <iomanip>
 
 #include <unistd.h>
 
@@ -194,6 +196,59 @@ namespace {
                 return true;
             }
         }
+
+        double get_timestamp(const std::string& asset_path) {
+            if (connection == nullptr) {
+                return 1.0;
+            }
+
+            mutex_scoped_lock sc(connection_mutex);
+            const auto cached_result = cached_queries.find(asset_path);
+            auto ret = 1.0;
+            if (cached_result == cached_queries.end()) {
+                TF_WARN("[uberResolver] %s was not resolved before fetching when querying timestamps!", asset_path.c_str());
+            } else {
+                // We always need to query the modification time
+                MYSQL_RES* result = nullptr;
+                constexpr size_t query_max_length = 4096;
+                char query[query_max_length];
+                snprintf(query, query_max_length,
+                         "SELECT time FROM %s WHERE path = '%s' LIMIT 1",
+                         table_name.c_str(), asset_path.c_str());
+                unsigned long query_length = strlen(query);
+                const auto query_ret = mysql_real_query(connection, query, query_length);
+                // I only have to flush when there is a successful query.
+                if (query_ret != 0) {
+                    TF_WARN("[uberResolver] Error executing query: %s\nError code: %i\nError string: %s",
+                            query, mysql_errno(connection), mysql_error(connection));
+                } else {
+                    result = mysql_store_result(connection);
+                }
+
+                if (result != nullptr) {
+                    assert(mysql_num_rows(result) == 1);
+                    auto row = mysql_fetch_row(result);
+                    assert(mysql_num_fields(result) == 1);
+                    auto field = mysql_fetch_field(result);
+                    if (field->type == MYSQL_TYPE_TIMESTAMP) {
+                        if (row[0] != nullptr && field->max_length > 0) {
+                            std::tm parsed_time = {};
+                            std::istringstream is(row[0]);
+                            is >> std::get_time(&parsed_time, "%Y-%m-%d %H:%M:%S");
+                            parsed_time.tm_isdst = 0; // I have to set daylight savings to 0
+                            // for the asctime function to match the actual time
+                            // even without that, the parsed times will be consistent, so
+                            // probably it won't cause any issues
+                            ret = mktime(&parsed_time);
+                        }
+                    } else {
+                        TF_WARN("[uberResolver] Wrong type for time field. Found %i instead of 7.", field->type);
+                    }
+                    mysql_free_result(result);
+                }
+            }
+            return ret;
+        }
     };
 
     template <typename key_t, typename value_t,
@@ -231,32 +286,31 @@ namespace {
             connections.clear();
         }
 
-        std::string resolve_name(const std::string& server_name, const std::string& asset_path) {
+        template <bool create>
+        SQLConnection* get_connection(const std::string& server_name) {
             sql_thread_init();
             SQLConnection* conn = nullptr;
             {
                 mutex_scoped_lock sc(connections_mutex);
                 conn = find_in_sorted_vector<connection_pair::first_type,
                     connection_pair::second_type, nullptr>(connections, server_name);
-                if (conn == nullptr) { // initialize new connection
+                if (create && conn == nullptr) { // initialize new connection
                     // TODO
                     conn = new SQLConnection(server_name);
                     connections.push_back(connection_pair{server_name, conn});
                     sort_connections();
                 }
             }
+            return conn;
+        }
 
+        std::string resolve_name(const std::string& server_name, const std::string& asset_path) {
+            auto conn = get_connection<true>(server_name);
             return conn->resolve_name(asset_path);
         }
 
         bool fetch_asset(const std::string& server_name, const std::string& asset_path) {
-            sql_thread_init();
-            SQLConnection* conn = nullptr;
-            {
-                mutex_scoped_lock sc(connections_mutex);
-                conn = find_in_sorted_vector<connection_pair::first_type,
-                    connection_pair::second_type, nullptr>(connections, server_name);
-            }
+            auto conn = get_connection<false>(server_name);
             // fetching asset will be after resolving, thus there should be a server
             if (conn == nullptr) {
                 return false;
@@ -267,6 +321,15 @@ namespace {
 
         bool matches_schema(const std::string& path) {
             return path.find("sql://") == 0;
+        }
+
+        double get_timestamp(const std::string& server_name, const std::string& asset_path) {
+            auto conn = get_connection<false>(server_name);
+            if (conn == nullptr) {
+                return 1.0;
+            } else {
+                return conn->get_timestamp(asset_path);
+            }
         }
 
         std::tuple<std::string, std::string> parse_path(const std::string& path) {
@@ -339,7 +402,8 @@ VtValue uberResolver::GetModificationTimestamp(
     const std::string& resolvedPath)
 {
     if (g_sql.matches_schema(path)) {
-        return VtValue(1.0); // TODO: can we query the entry modification times from SQL?
+        const auto parsed_request = g_sql.parse_path(path);
+        return VtValue(g_sql.get_timestamp(std::get<0>(parsed_request), std::get<1>(parsed_request)));
     } else {
         return ArDefaultResolver::GetModificationTimestamp(path, resolvedPath);
     }
