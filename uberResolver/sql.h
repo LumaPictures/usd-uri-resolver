@@ -13,12 +13,10 @@ public:
     ~SQLInstance();
     void clear();
 
-    std::string resolve_name(const std::string& server_name, const std::string& asset_path);
-    bool fetch_asset(const std::string& server_name, const std::string& asset_path);
+    std::string resolve_name(const std::string& path);
+    bool fetch_asset(const std::string& path);
     bool matches_schema(const std::string& path);
-    double get_timestamp(const std::string& server_name, const std::string& asset_path);
-    std::tuple<std::string, std::string> parse_path(const std::string& path);
-
+    double get_timestamp(const std::string& path);
 private:
     using connection_pair = std::pair<std::string, SQLConnection*>;
     SQLConnection* get_connection(const std::string& server_name, bool create);

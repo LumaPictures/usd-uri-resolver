@@ -47,8 +47,7 @@ std::string uberResolver::ResolveWithAssetInfo(
     ArAssetInfo* assetInfo)
 {
     if (g_sql.matches_schema(path)) {
-        const auto parsed_request = g_sql.parse_path(path);
-        return g_sql.resolve_name(std::get<0>(parsed_request), std::get<1>(parsed_request));
+        return g_sql.resolve_name(path);
     } else {
         return ArDefaultResolver::ResolveWithAssetInfo(path, assetInfo);
     }
@@ -68,8 +67,7 @@ VtValue uberResolver::GetModificationTimestamp(
     const std::string& resolvedPath)
 {
     if (g_sql.matches_schema(path)) {
-        const auto parsed_request = g_sql.parse_path(path);
-        return VtValue(g_sql.get_timestamp(std::get<0>(parsed_request), std::get<1>(parsed_request)));
+        return VtValue(g_sql.get_timestamp(path));
     } else {
         return ArDefaultResolver::GetModificationTimestamp(path, resolvedPath);
     }
@@ -78,8 +76,7 @@ VtValue uberResolver::GetModificationTimestamp(
 bool uberResolver::FetchToLocalResolvedPath(const std::string& path, const std::string& resolvedPath)
 {
     if (g_sql.matches_schema(path)) {
-        const auto parsed_request = g_sql.parse_path(path);
-        return g_sql.fetch_asset(std::get<0>(parsed_request), std::get<1>(parsed_request));
+        return g_sql.fetch_asset(path);
     } else {
         return true;
     }

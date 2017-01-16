@@ -49,7 +49,21 @@ namespace {
         } else {
             return default_value;
         }
-    };
+    }
+
+    std::tuple<std::string, std::string> parse_path(const std::string& path) {
+        constexpr auto schema_length = strlen("sql://");
+        const auto query_path = path.substr(schema_length);
+        const auto first_slash = query_path.find("/");
+        if (first_slash == std::string::npos || first_slash == 0) {
+            return std::tuple<std::string, std::string>{"", ""};
+        } else {
+            const auto server_name = query_path.substr(0, first_slash);
+            // the lib has issues when using localhost instead of the ip address
+            return std::tuple<std::string, std::string>{server_name == "localhost" ? "127.0.0.1" : server_name,
+                                                        query_path.substr(first_slash)};
+        }
+    }
 }
 
 struct SQLConnection {
@@ -271,7 +285,6 @@ void SQLInstance::clear() {
     connections.clear();
 }
 
-
 SQLConnection* SQLInstance::get_connection(const std::string& server_name, bool create) {
     sql_thread_init();
     SQLConnection* conn = nullptr;
@@ -289,18 +302,20 @@ SQLConnection* SQLInstance::get_connection(const std::string& server_name, bool 
     return conn;
 }
 
-std::string SQLInstance::resolve_name(const std::string& server_name, const std::string& asset_path) {
-    auto conn = get_connection(server_name, true);
-    return conn->resolve_name(asset_path);
+std::string SQLInstance::resolve_name(const std::string& path) {
+    const auto parsed_path = parse_path(path);
+    auto conn = get_connection(std::get<0>(parsed_path), true);
+    return conn->resolve_name(std::get<1>(parsed_path));
 }
 
-bool SQLInstance::fetch_asset(const std::string& server_name, const std::string& asset_path) {
-    auto conn = get_connection(server_name, false);
+bool SQLInstance::fetch_asset(const std::string& path) {
+    const auto parsed_path = parse_path(path);
+    auto conn = get_connection(std::get<0>(parsed_path), false);
     // fetching asset will be after resolving, thus there should be a server
     if (conn == nullptr) {
         return false;
     } else {
-        return conn->fetch(asset_path);
+        return conn->fetch(std::get<1>(parsed_path));
     }
 }
 
@@ -308,28 +323,15 @@ bool SQLInstance::matches_schema(const std::string& path) {
     return path.find("sql://") == 0;
 }
 
-double SQLInstance::get_timestamp(const std::string& server_name, const std::string& asset_path) {
-    auto conn = get_connection(server_name, false);
+double SQLInstance::get_timestamp(const std::string& path) {
+    const auto parsed_path = parse_path(path);
+    auto conn = get_connection(std::get<0>(parsed_path), false);
     if (conn == nullptr) {
         return 1.0;
     } else {
-        return conn->get_timestamp(asset_path);
+        return conn->get_timestamp(std::get<1>(parsed_path));
     }
 }
-
-std::tuple<std::string, std::string> SQLInstance::parse_path(const std::string& path) {
-    constexpr auto schema_length = strlen("sql://");
-    const auto query_path = path.substr(schema_length);
-    const auto first_slash = query_path.find("/");
-    if (first_slash == std::string::npos || first_slash == 0) {
-        return std::tuple<std::string, std::string>{"", ""};
-    } else {
-        const auto server_name = query_path.substr(0, first_slash);
-        // the lib has issues when using localhost instead of the ip address
-        return std::tuple<std::string, std::string>{server_name == "localhost" ? "127.0.0.1" : server_name,
-                                                    query_path.substr(first_slash)};
-    }
-};
 
 void SQLInstance::sort_connections() {
     // auto in lambdas require c++14 :(
