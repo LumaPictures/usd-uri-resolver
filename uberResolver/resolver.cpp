@@ -197,6 +197,17 @@ namespace {
             }
         }
 
+        double convert_char_to_time(const char* raw_time) {
+            std::tm parsed_time = {};
+            std::istringstream is(raw_time);
+            is >> std::get_time(&parsed_time, "%Y-%m-%d %H:%M:%S");
+            parsed_time.tm_isdst = 0; // I have to set daylight savings to 0
+            // for the asctime function to match the actual time
+            // even without that, the parsed times will be consistent, so
+            // probably it won't cause any issues
+            return mktime(&parsed_time);
+        }
+
         double get_timestamp(const std::string& asset_path) {
             if (connection == nullptr) {
                 return 1.0;
@@ -232,14 +243,7 @@ namespace {
                     auto field = mysql_fetch_field(result);
                     if (field->type == MYSQL_TYPE_TIMESTAMP) {
                         if (row[0] != nullptr && field->max_length > 0) {
-                            std::tm parsed_time = {};
-                            std::istringstream is(row[0]);
-                            is >> std::get_time(&parsed_time, "%Y-%m-%d %H:%M:%S");
-                            parsed_time.tm_isdst = 0; // I have to set daylight savings to 0
-                            // for the asctime function to match the actual time
-                            // even without that, the parsed times will be consistent, so
-                            // probably it won't cause any issues
-                            ret = mktime(&parsed_time);
+                            ret = convert_char_to_time(row[0]);
                         }
                     } else {
                         TF_WARN("[uberResolver] Wrong type for time field. Found %i instead of 7.", field->type);
