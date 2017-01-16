@@ -268,15 +268,15 @@ struct SQLConnection {
     }
 };
 
-SQLInstance::SQLInstance() {
+SQL::SQL() {
     my_init();
 }
 
-SQLInstance::~SQLInstance() {
+SQL::~SQL() {
     clear();
 }
 
-void SQLInstance::clear() {
+void SQL::clear() {
     sql_thread_init();
     mutex_scoped_lock sc(connections_mutex);
     for (const auto& connection : connections) {
@@ -285,7 +285,7 @@ void SQLInstance::clear() {
     connections.clear();
 }
 
-SQLConnection* SQLInstance::get_connection(const std::string& server_name, bool create) {
+SQLConnection* SQL::get_connection(const std::string& server_name, bool create) {
     sql_thread_init();
     SQLConnection* conn = nullptr;
     {
@@ -302,13 +302,13 @@ SQLConnection* SQLInstance::get_connection(const std::string& server_name, bool 
     return conn;
 }
 
-std::string SQLInstance::resolve_name(const std::string& path) {
+std::string SQL::resolve_name(const std::string& path) {
     const auto parsed_path = parse_path(path);
     auto conn = get_connection(std::get<0>(parsed_path), true);
     return conn->resolve_name(std::get<1>(parsed_path));
 }
 
-bool SQLInstance::fetch_asset(const std::string& path) {
+bool SQL::fetch_asset(const std::string& path) {
     const auto parsed_path = parse_path(path);
     auto conn = get_connection(std::get<0>(parsed_path), false);
     // fetching asset will be after resolving, thus there should be a server
@@ -319,11 +319,11 @@ bool SQLInstance::fetch_asset(const std::string& path) {
     }
 }
 
-bool SQLInstance::matches_schema(const std::string& path) {
+bool SQL::matches_schema(const std::string& path) {
     return path.find("sql://") == 0;
 }
 
-double SQLInstance::get_timestamp(const std::string& path) {
+double SQL::get_timestamp(const std::string& path) {
     const auto parsed_path = parse_path(path);
     auto conn = get_connection(std::get<0>(parsed_path), false);
     if (conn == nullptr) {
@@ -333,7 +333,7 @@ double SQLInstance::get_timestamp(const std::string& path) {
     }
 }
 
-void SQLInstance::sort_connections() {
+void SQL::sort_connections() {
     // auto in lambdas require c++14 :(
     std::sort(connections.begin(), connections.end(), [](const connection_pair& a, const connection_pair& b) {
         return a.first < b.first;

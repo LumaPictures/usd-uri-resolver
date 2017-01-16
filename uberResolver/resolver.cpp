@@ -23,7 +23,7 @@
  */
 
 namespace {
-    SQLInstance g_sql;
+    SQL g_sql;
 }
 
 AR_DEFINE_RESOLVER(uberResolver, ArResolver)

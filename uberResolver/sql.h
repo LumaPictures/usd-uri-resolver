@@ -7,10 +7,10 @@
 
 struct SQLConnection;
 
-class SQLInstance {
+class SQL {
 public:
-    SQLInstance();
-    ~SQLInstance();
+    SQL();
+    ~SQL();
     void clear();
 
     std::string resolve_name(const std::string& path);
