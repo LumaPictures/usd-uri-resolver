@@ -64,6 +64,55 @@ namespace {
                                                         query_path.substr(first_slash)};
         }
     }
+
+    double convert_char_to_time(const char* raw_time) {
+        std::tm parsed_time = {};
+        std::istringstream is(raw_time);
+        is >> std::get_time(&parsed_time, "%Y-%m-%d %H:%M:%S");
+        parsed_time.tm_isdst = 0; // I have to set daylight savings to 0
+        // for the asctime function to match the actual time
+        // even without that, the parsed times will be consistent, so
+        // probably it won't cause any issues
+        return mktime(&parsed_time);
+    }
+
+    double get_timestamp_raw(MYSQL* connection, const std::string& table_name, const std::string& asset_path) {
+        MYSQL_RES* result = nullptr;
+        constexpr size_t query_max_length = 4096;
+        char query[query_max_length];
+        snprintf(query, query_max_length,
+                 "SELECT time FROM %s WHERE path = '%s' LIMIT 1",
+                 table_name.c_str(), asset_path.c_str());
+        unsigned long query_length = strlen(query);
+        const auto query_ret = mysql_real_query(connection, query, query_length);
+        // I only have to flush when there is a successful query.
+        if (query_ret != 0) {
+            TF_WARN("[uberResolver] Error executing query: %s\nError code: %i\nError string: %s",
+                    query, mysql_errno(connection), mysql_error(connection));
+        } else {
+            result = mysql_store_result(connection);
+        }
+
+        auto ret = 1.0;
+
+        if (result != nullptr) {
+            assert(mysql_num_rows(result) == 1);
+            auto row = mysql_fetch_row(result);
+            assert(mysql_num_fields(result) == 1);
+            auto field = mysql_fetch_field(result);
+            if (field->type == MYSQL_TYPE_TIMESTAMP) {
+                if (row[0] != nullptr && field->max_length > 0) {
+                    ret = convert_char_to_time(row[0]);
+                }
+            } else {
+                TF_WARN("[uberResolver] Wrong type for time field. Found %i instead of 7.", field->type);
+            }
+            mysql_free_result(result);
+        }
+
+        return ret;
+    }
+
 }
 
 struct SQLConnection {
@@ -210,17 +259,6 @@ struct SQLConnection {
         }
     }
 
-    double convert_char_to_time(const char* raw_time) {
-        std::tm parsed_time = {};
-        std::istringstream is(raw_time);
-        is >> std::get_time(&parsed_time, "%Y-%m-%d %H:%M:%S");
-        parsed_time.tm_isdst = 0; // I have to set daylight savings to 0
-        // for the asctime function to match the actual time
-        // even without that, the parsed times will be consistent, so
-        // probably it won't cause any issues
-        return mktime(&parsed_time);
-    }
-
     double get_timestamp(const std::string& asset_path) {
         if (connection == nullptr) {
             return 1.0;
@@ -228,43 +266,12 @@ struct SQLConnection {
 
         mutex_scoped_lock sc(connection_mutex);
         const auto cached_result = cached_queries.find(asset_path);
-        auto ret = 1.0;
         if (cached_result == cached_queries.end()) {
             TF_WARN("[uberResolver] %s was not resolved before fetching when querying timestamps!", asset_path.c_str());
+            return 1.0;
         } else {
-            // We always need to query the modification time
-            MYSQL_RES* result = nullptr;
-            constexpr size_t query_max_length = 4096;
-            char query[query_max_length];
-            snprintf(query, query_max_length,
-                     "SELECT time FROM %s WHERE path = '%s' LIMIT 1",
-                     table_name.c_str(), asset_path.c_str());
-            unsigned long query_length = strlen(query);
-            const auto query_ret = mysql_real_query(connection, query, query_length);
-            // I only have to flush when there is a successful query.
-            if (query_ret != 0) {
-                TF_WARN("[uberResolver] Error executing query: %s\nError code: %i\nError string: %s",
-                        query, mysql_errno(connection), mysql_error(connection));
-            } else {
-                result = mysql_store_result(connection);
-            }
-
-            if (result != nullptr) {
-                assert(mysql_num_rows(result) == 1);
-                auto row = mysql_fetch_row(result);
-                assert(mysql_num_fields(result) == 1);
-                auto field = mysql_fetch_field(result);
-                if (field->type == MYSQL_TYPE_TIMESTAMP) {
-                    if (row[0] != nullptr && field->max_length > 0) {
-                        ret = convert_char_to_time(row[0]);
-                    }
-                } else {
-                    TF_WARN("[uberResolver] Wrong type for time field. Found %i instead of 7.", field->type);
-                }
-                mysql_free_result(result);
-            }
+            return get_timestamp_raw(connection, table_name, asset_path);
         }
-        return ret;
     }
 };
 
