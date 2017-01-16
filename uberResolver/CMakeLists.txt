@@ -35,3 +35,6 @@ install(TARGETS ${PLUGIN_NAME}
 
 install(FILES plugInfo.json
         DESTINATION ${PLUGIN_NAME}/resources/)
+
+install(FILES uber_resolver.md
+        DESTINATION docs)
