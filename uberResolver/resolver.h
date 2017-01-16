@@ -1,7 +1,6 @@
-#ifndef AR_UBER_RESOLVER_H
-#define AR_UBER_RESOLVER_H
+#pragma once
 
-#include "pxr/usd/ar/defaultResolver.h"
+#include <pxr/usd/ar/defaultResolver.h>
 
 #include <tbb/enumerable_thread_specific.h>
 
@@ -40,5 +39,3 @@ public:
         const std::string& path,
         const std::string& resolvedPath) override;
 };
-
-#endif // AR_UBER_RESOLVER_H

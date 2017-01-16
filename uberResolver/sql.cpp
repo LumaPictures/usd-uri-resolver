@@ -11,6 +11,8 @@
 #include <iomanip>
 #include <algorithm>
 
+#include <z85/z85.hpp>
+
 namespace {
     using mutex_scoped_lock = std::lock_guard<std::mutex>;
 
@@ -133,7 +135,9 @@ struct SQLConnection {
 
     SQLConnection(const std::string& server_name) : connection(mysql_init(nullptr)) {
         const auto server_user = get_env_var(server_name, "USD_SQL_USER", "root");
-        const auto server_password = get_env_var(server_name, "USD_SQL_PASSWD", "12345678");
+        const std::string compacted_default_pass = z85::encode_with_padding(std::string("12345678"));
+        auto server_password = get_env_var(server_name, "USD_SQL_PASSWD", compacted_default_pass);
+        server_password = z85::decode_with_padding(server_password);
         const auto server_db = get_env_var(server_name, "USD_SQL_DB", "usd");
         table_name = get_env_var(server_name, "USD_SQL_TABLE", "headers");
         const auto server_port = static_cast<unsigned int>(

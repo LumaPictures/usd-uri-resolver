@@ -1,7 +1,7 @@
 #include "resolver.h"
 
-#include "pxr/usd/ar/assetInfo.h"
-#include "pxr/usd/ar/resolverContext.h"
+#include <pxr/usd/ar/assetInfo.h>
+#include <pxr/usd/ar/resolverContext.h>
 
 #include <pxr/usd/ar/defineResolver.h>
 
