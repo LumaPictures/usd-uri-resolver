@@ -10,6 +10,9 @@
 #include <fstream>
 #include <iomanip>
 #include <algorithm>
+#include <locale>
+#include <time.h>
+#include <iostream>
 
 #include <z85/z85.hpp>
 
@@ -68,10 +71,11 @@ namespace {
     }
 
     double convert_char_to_time(const char* raw_time) {
+        // GCC 4.8 doesn't have the get_time function of C++11
         std::tm parsed_time = {};
-        std::istringstream is(raw_time);
-        is >> std::get_time(&parsed_time, "%Y-%m-%d %H:%M:%S");
-        parsed_time.tm_isdst = 0; // I have to set daylight savings to 0
+        strptime(raw_time, "%Y-%m-%d %H:%M:%S", &parsed_time);
+        parsed_time.tm_isdst = 0;
+        // I have to set daylight savings to 0
         // for the asctime function to match the actual time
         // even without that, the parsed times will be consistent, so
         // probably it won't cause any issues
