@@ -124,6 +124,7 @@ struct SQLConnection {
     struct Cache {
         CacheState state;
         std::string local_path;
+        double timestamp;
     };
     std::mutex connection_mutex; // do we actually need this? the api should support multithreaded queries!
     std::map<std::string, Cache> cached_queries;
@@ -198,6 +199,7 @@ struct SQLConnection {
                 if (last_dot != std::string::npos) {
                     cache.local_path = generate_name(asset_path.substr(last_dot + 1));
                     cache.state = CACHE_NEEDS_FETCHING;
+                    cache.timestamp = 1.0;
                 }
             }
             mysql_free_result(result);
@@ -250,6 +252,7 @@ struct SQLConnection {
                         fs.write(row[0], field->max_length);
                         fs.flush();
                         cached_result->second.state = CACHE_FETCHED;
+                        cached_result->second.timestamp = get_timestamp_raw(connection, table_name, asset_path);
                     }
                     mysql_free_result(result);
                 }
@@ -266,11 +269,15 @@ struct SQLConnection {
 
         mutex_scoped_lock sc(connection_mutex);
         const auto cached_result = cached_queries.find(asset_path);
-        if (cached_result == cached_queries.end()) {
-            TF_WARN("[uberResolver] %s was not resolved before fetching when querying timestamps!", asset_path.c_str());
+        if (cached_result == cached_queries.end() || cached_result->second.state == CACHE_MISSING) {
+            TF_WARN("[uberResolver] %s is missing when querying timestamps!", asset_path.c_str());
             return 1.0;
         } else {
-            return get_timestamp_raw(connection, table_name, asset_path);
+            const auto ret = get_timestamp_raw(connection, table_name, asset_path);
+            if (ret > cached_result->second.timestamp) {
+                cached_result->second.state = CACHE_NEEDS_FETCHING;
+            }
+            return ret;
         }
     }
 };
