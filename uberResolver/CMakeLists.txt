@@ -16,7 +16,9 @@ find_library(MYSQL_CONNECTOR_LIBRARY
 message(STATUS "MySql connector library : ${MYSQL_CONNECTOR_LIBRARY}")
 add_compile_options(-Wall)
 
-add_library(${PLUGIN_NAME} SHARED resolver.cpp)
+file(GLOB SRC *.cpp)
+
+add_library(${PLUGIN_NAME} SHARED ${SRC})
 set_target_properties(${PLUGIN_NAME} PROPERTIES PREFIX "")
 target_link_libraries(${PLUGIN_NAME} arch tf plug vt ar ${MYSQL_CONNECTOR_LIBRARY})
 
