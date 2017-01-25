@@ -205,7 +205,7 @@ struct SQLConnection {
             if (row[0] != nullptr && strcmp(row[0], "1") == 0) {
                 const auto last_dot = asset_path.find_last_of('.');
                 if (last_dot != std::string::npos) {
-                    cache.local_path = generate_name(asset_path.substr(last_dot + 1));
+                    cache.local_path = generate_name(asset_path.substr(last_dot));
                     cache.state = CACHE_NEEDS_FETCHING;
                     cache.timestamp = 1.0;
                 }
