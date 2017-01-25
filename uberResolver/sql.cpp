@@ -87,7 +87,7 @@ namespace {
         constexpr size_t query_max_length = 4096;
         char query[query_max_length];
         snprintf(query, query_max_length,
-                 "SELECT time FROM %s WHERE path = '%s' LIMIT 1",
+                 "SELECT timestamp FROM %s WHERE path = '%s' LIMIT 1",
                  table_name.c_str(), asset_path.c_str());
         unsigned long query_length = strlen(query);
         const auto query_ret = mysql_real_query(connection, query, query_length);
