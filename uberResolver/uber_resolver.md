@@ -20,7 +20,7 @@ Asset path
 The SQL resolver expects a table, with 3 entries.
 - path - CHAR / VARCHAR containing the path to the asset
 - data - (LONG/MEDIUM/SHORT)BLOB containing the data.
-- time - TIMESTAMP containing the last asset modification time. Set the expression to ON UPDATE CURRENT_TIMESTAMP to always keep up to date with changes, and make sure timezones are setup correctly on the databases.
+- timestamp - TIMESTAMP containing the last asset modification time. Set the expression to ON UPDATE CURRENT_TIMESTAMP to always keep up to date with changes, and make sure timezones are setup correctly on the databases.
 
 #### Environment variables supported by the resolver
 
