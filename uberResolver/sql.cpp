@@ -19,8 +19,15 @@
 namespace {
     using mutex_scoped_lock = std::lock_guard<std::mutex>;
 
-    std::string generate_name(const std::string& extension) {
-        return std::tmpnam(nullptr) + extension;
+    std::string generate_name(const std::string& base, const std::string& extension, char* buffer) {
+        std::tmpnam(buffer);
+        std::string ret(buffer);
+        const auto last_slash = ret.find_last_of('/');
+        if (last_slash == std::string::npos) {
+            return base + ret + extension;
+        } else {
+            return base + ret.substr(last_slash + 1) + extension;
+        }
     }
 
     thread_local std::once_flag thread_flag;
@@ -115,10 +122,8 @@ namespace {
             }
             mysql_free_result(result);
         }
-
         return ret;
     }
-
 }
 
 struct SQLConnection {
@@ -135,9 +140,15 @@ struct SQLConnection {
     std::mutex connection_mutex; // do we actually need this? the api should support multithreaded queries!
     std::map<std::string, Cache> cached_queries;
     std::string table_name;
+    std::string cache_path;
+    char tmp_name_buffer[TMP_MAX];
     MYSQL* connection;
 
     SQLConnection(const std::string& server_name) : connection(mysql_init(nullptr)) {
+        cache_path = get_env_var(server_name, "USD_SQL_CACHE_PATH", "/tmp/");
+        if (cache_path.back() != '/') {
+            cache_path += "/";
+        }
         const auto server_user = get_env_var(server_name, "USD_SQL_USER", "root");
         const std::string compacted_default_pass = z85::encode_with_padding(std::string("12345678"));
         auto server_password = get_env_var(server_name, "USD_SQL_PASSWD", compacted_default_pass);
@@ -205,7 +216,7 @@ struct SQLConnection {
             if (row[0] != nullptr && strcmp(row[0], "1") == 0) {
                 const auto last_dot = asset_path.find_last_of('.');
                 if (last_dot != std::string::npos) {
-                    cache.local_path = generate_name(asset_path.substr(last_dot));
+                    cache.local_path = generate_name(cache_path, asset_path.substr(last_dot), tmp_name_buffer);
                     cache.state = CACHE_NEEDS_FETCHING;
                     cache.timestamp = 1.0;
                 }

@@ -31,6 +31,7 @@ Each environment variable can be either setup globally, or server specific. Firs
 - USD_SQL_PASSWD - Password for the user to access the database. Default value is the obfuscated version of 12345678.
 - USD_SQL_PORT - Port to access the database. Default value is 3306.
 - USD_SQL_TABLE - Name of the table containing the data. Default value is headers.
+- USD_SQL_CACHE_PATH - Name of the local cache path to save usd files. Default value is /tmp.
 
 #### Password obfuscation
 
