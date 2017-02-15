@@ -64,7 +64,7 @@ namespace {
     }
 
     std::string parse_path(const std::string& path) {
-        constexpr auto schema_length = strlen(SQL_PREFIX);
+        constexpr auto schema_length = strlen(usd_sql::SQL_PREFIX);
         return path.substr(schema_length);
     }
 
@@ -117,260 +117,286 @@ namespace {
     }
 }
 
-struct SQLConnection {
-    enum CacheState{
-        CACHE_MISSING,
-        CACHE_NEEDS_FETCHING,
-        CACHE_FETCHED
-    };
-    struct Cache {
-        CacheState state;
-        std::string local_path;
-        double timestamp;
-    };
-    std::mutex connection_mutex; // do we actually need this? the api should support multithreaded queries!
-    std::map<std::string, Cache> cached_queries;
-    std::string table_name;
-    std::string cache_path;
-    char tmp_name_buffer[TMP_MAX];
-    MYSQL* connection;
+namespace usd_sql {
+    struct SQLConnection {
+        enum CacheState {
+            CACHE_MISSING,
+            CACHE_NEEDS_FETCHING,
+            CACHE_FETCHED
+        };
+        struct Cache {
+            CacheState state;
+            std::string local_path;
+            double timestamp;
+        };
+        std::mutex connection_mutex; // do we actually need this? the api should support multithreaded queries!
+        std::map<std::string, Cache> cached_queries;
+        std::string table_name;
+        std::string cache_path;
+        char tmp_name_buffer[TMP_MAX];
+        MYSQL* connection;
 
-    SQLConnection(const std::string& server_name) : connection(mysql_init(nullptr)) {
-        cache_path = get_env_var(server_name, CACHE_PATH_ENV_VAR, "/tmp/");
-        if (cache_path.back() != '/') {
-            cache_path += "/";
-        }
-        const auto server_user = get_env_var(server_name, USER_ENV_VAR, "root");
-        const std::string compacted_default_pass = z85::encode_with_padding(std::string("12345678"));
-        auto server_password = get_env_var(server_name, PASSWORD_ENV_VAR, compacted_default_pass);
-        server_password = z85::decode_with_padding(server_password);
-        const auto server_db = get_env_var(server_name, DB_ENV_VAR, "usd");
-        table_name = get_env_var(server_name, TABLE_ENV_VAR, "headers");
-        const auto server_port = static_cast<unsigned int>(
-            atoi(get_env_var(server_name, PORT_ENV_VAR, "3306").c_str()));
-        const auto ret = mysql_real_connect(
-            connection, server_name.c_str(),
-            server_user.c_str(), server_password.c_str(),
-            server_db.c_str(), server_port, nullptr, 0);
-        if (ret == nullptr) {
-            mysql_close(connection);
-            TF_WARN("[uberResolver] Failed to connect to: %s\nReason: %s",
-                    server_name.c_str(), mysql_error(connection));
-            connection = nullptr;
-        }
-    }
-
-    ~SQLConnection() {
-        for (const auto& cache: cached_queries) {
-            if (cache.second.state == CACHE_FETCHED) {
-                remove(cache.second.local_path.c_str());
+        SQLConnection(const std::string& server_name) : connection(
+                mysql_init(nullptr)) {
+            cache_path = get_env_var(server_name, CACHE_PATH_ENV_VAR, "/tmp/");
+            if (cache_path.back() != '/') {
+                cache_path += "/";
+            }
+            const auto server_user = get_env_var(server_name, USER_ENV_VAR,
+                                                 "root");
+            const std::string compacted_default_pass = z85::encode_with_padding(
+                    std::string("12345678"));
+            auto server_password = get_env_var(server_name, PASSWORD_ENV_VAR,
+                                               compacted_default_pass);
+            server_password = z85::decode_with_padding(server_password);
+            const auto server_db = get_env_var(server_name, DB_ENV_VAR, "usd");
+            table_name = get_env_var(server_name, TABLE_ENV_VAR, "headers");
+            const auto server_port = static_cast<unsigned int>(
+                    atoi(get_env_var(server_name, PORT_ENV_VAR, "3306").c_str()));
+            const auto ret = mysql_real_connect(
+                    connection, server_name.c_str(),
+                    server_user.c_str(), server_password.c_str(),
+                    server_db.c_str(), server_port, nullptr, 0);
+            if (ret == nullptr) {
+                mysql_close(connection);
+                TF_WARN("[uberResolver] Failed to connect to: %s\nReason: %s",
+                        server_name.c_str(), mysql_error(connection));
+                connection = nullptr;
             }
         }
-        mysql_close(connection);
-    }
 
-    std::string resolve_name(const std::string& asset_path) {
-        if (connection == nullptr) {
-            return "";
-        }
-        mutex_scoped_lock sc(connection_mutex);
-
-        const auto cached_result = cached_queries.find(asset_path);
-        if (cached_result != cached_queries.end()) {
-            return cached_result->second.local_path;
-        }
-        Cache cache {
-            CACHE_MISSING,
-            ""
-        };
-
-        MYSQL_RES* result = nullptr;
-        constexpr size_t query_max_length = 4096;
-        char query[query_max_length];
-        snprintf(query, query_max_length,
-                 "SELECT EXISTS(SELECT 1 FROM %s WHERE path = '%s')",
-                 table_name.c_str(), asset_path.c_str());
-        unsigned long query_length = strlen(query);
-        const auto query_ret = mysql_real_query(connection, query, query_length);
-        // I only have to flush when there is a successful query.
-        if (query_ret != 0) {
-            TF_WARN("[uberResolver] Error executing query: %s\nError code: %i\nError string: %s",
-                    query, mysql_errno(connection), mysql_error(connection));
-        } else {
-            result = mysql_store_result(connection);
-        }
-
-        if (result != nullptr) {
-            assert(mysql_num_rows(result) == 1);
-            auto row = mysql_fetch_row(result);
-            assert(mysql_num_fields(result) == 1);
-            if (row[0] != nullptr && strcmp(row[0], "1") == 0) {
-                const auto last_dot = asset_path.find_last_of('.');
-                if (last_dot != std::string::npos) {
-                    cache.local_path = generate_name(cache_path, asset_path.substr(last_dot), tmp_name_buffer);
-                    cache.state = CACHE_NEEDS_FETCHING;
-                    cache.timestamp = 1.0;
+        ~SQLConnection() {
+            for (const auto& cache: cached_queries) {
+                if (cache.second.state == CACHE_FETCHED) {
+                    remove(cache.second.local_path.c_str());
                 }
             }
-            mysql_free_result(result);
+            mysql_close(connection);
         }
 
-        cached_queries.insert(std::make_pair(asset_path, cache));
-        return cache.local_path;
-    }
+        std::string resolve_name(const std::string& asset_path) {
+            if (connection == nullptr) {
+                return "";
+            }
+            mutex_scoped_lock sc(connection_mutex);
 
-    bool fetch(const std::string& asset_path) {
-        if (connection == nullptr) {
-            return false;
+            const auto cached_result = cached_queries.find(asset_path);
+            if (cached_result != cached_queries.end()) {
+                return cached_result->second.local_path;
+            }
+            Cache cache{
+                    CACHE_MISSING,
+                    ""
+            };
+
+            MYSQL_RES* result = nullptr;
+            constexpr size_t query_max_length = 4096;
+            char query[query_max_length];
+            snprintf(query, query_max_length,
+                     "SELECT EXISTS(SELECT 1 FROM %s WHERE path = '%s')",
+                     table_name.c_str(), asset_path.c_str());
+            unsigned long query_length = strlen(query);
+            const auto query_ret = mysql_real_query(connection, query,
+                                                    query_length);
+            // I only have to flush when there is a successful query.
+            if (query_ret != 0) {
+                TF_WARN("[uberResolver] Error executing query: %s\nError code: %i\nError string: %s",
+                        query, mysql_errno(connection), mysql_error(connection));
+            }
+            else {
+                result = mysql_store_result(connection);
+            }
+
+            if (result != nullptr) {
+                assert(mysql_num_rows(result) == 1);
+                auto row = mysql_fetch_row(result);
+                assert(mysql_num_fields(result) == 1);
+                if (row[0] != nullptr && strcmp(row[0], "1") == 0) {
+                    const auto last_dot = asset_path.find_last_of('.');
+                    if (last_dot != std::string::npos) {
+                        cache.local_path = generate_name(cache_path,
+                                                         asset_path.substr(
+                                                                 last_dot),
+                                                         tmp_name_buffer);
+                        cache.state = CACHE_NEEDS_FETCHING;
+                        cache.timestamp = 1.0;
+                    }
+                }
+                mysql_free_result(result);
+            }
+
+            cached_queries.insert(std::make_pair(asset_path, cache));
+            return cache.local_path;
         }
 
-        mutex_scoped_lock sc(connection_mutex);
-        const auto cached_result = cached_queries.find(asset_path);
-        if (cached_result == cached_queries.end()) {
-            TF_WARN("[uberResolver] %s was not resolved before fetching!", asset_path.c_str());
-            return false;
-        } else {
-            if (cached_result->second.state == CACHE_MISSING) {
+        bool fetch(const std::string& asset_path) {
+            if (connection == nullptr) {
                 return false;
             }
-            else if (cached_result->second.state == CACHE_NEEDS_FETCHING) {
-                cached_result->second.state = CACHE_MISSING; // we'll set this up if fetching is successful
 
-                MYSQL_RES* result = nullptr;
-                constexpr size_t query_max_length = 4096;
-                char query[query_max_length];
-                snprintf(query, query_max_length,
-                         "SELECT data FROM %s WHERE path = '%s' LIMIT 1",
-                         table_name.c_str(), asset_path.c_str());
-                unsigned long query_length = strlen(query);
-                const auto query_ret = mysql_real_query(connection, query, query_length);
-                // I only have to flush when there is a successful query.
-                if (query_ret != 0) {
-                    TF_WARN("[uberResolver] Error executing query: %s\nError code: %i\nError string: %s",
-                            query, mysql_errno(connection), mysql_error(connection));
-                } else {
-                    result = mysql_store_result(connection);
+            mutex_scoped_lock sc(connection_mutex);
+            const auto cached_result = cached_queries.find(asset_path);
+            if (cached_result == cached_queries.end()) {
+                TF_WARN("[uberResolver] %s was not resolved before fetching!",
+                        asset_path.c_str());
+                return false;
+            }
+            else {
+                if (cached_result->second.state == CACHE_MISSING) {
+                    return false;
                 }
+                else if (cached_result->second.state == CACHE_NEEDS_FETCHING) {
+                    cached_result->second.state = CACHE_MISSING; // we'll set this up if fetching is successful
 
-                if (result != nullptr) {
-                    assert(mysql_num_rows(result) == 1);
-                    auto row = mysql_fetch_row(result);
-                    assert(mysql_num_fields(result) == 1);
-                    auto field = mysql_fetch_field(result);
-                    if (row[0] != nullptr && field->max_length > 0) {
-                        std::fstream fs(cached_result->second.local_path, std::ios::out | std::ios::binary);
-                        fs.write(row[0], field->max_length);
-                        fs.flush();
-                        cached_result->second.state = CACHE_FETCHED;
-                        cached_result->second.timestamp = get_timestamp_raw(connection, table_name, asset_path);
+                    MYSQL_RES* result = nullptr;
+                    constexpr size_t query_max_length = 4096;
+                    char query[query_max_length];
+                    snprintf(query, query_max_length,
+                             "SELECT data FROM %s WHERE path = '%s' LIMIT 1",
+                             table_name.c_str(), asset_path.c_str());
+                    unsigned long query_length = strlen(query);
+                    const auto query_ret = mysql_real_query(connection, query,
+                                                            query_length);
+                    // I only have to flush when there is a successful query.
+                    if (query_ret != 0) {
+                        TF_WARN("[uberResolver] Error executing query: %s\nError code: %i\nError string: %s",
+                                query, mysql_errno(connection),
+                                mysql_error(connection));
                     }
-                    mysql_free_result(result);
+                    else {
+                        result = mysql_store_result(connection);
+                    }
+
+                    if (result != nullptr) {
+                        assert(mysql_num_rows(result) == 1);
+                        auto row = mysql_fetch_row(result);
+                        assert(mysql_num_fields(result) == 1);
+                        auto field = mysql_fetch_field(result);
+                        if (row[0] != nullptr && field->max_length > 0) {
+                            std::fstream fs(cached_result->second.local_path,
+                                            std::ios::out | std::ios::binary);
+                            fs.write(row[0], field->max_length);
+                            fs.flush();
+                            cached_result->second.state = CACHE_FETCHED;
+                            cached_result->second.timestamp = get_timestamp_raw(
+                                    connection, table_name, asset_path);
+                        }
+                        mysql_free_result(result);
+                    }
                 }
+
+                return true;
+            }
+        }
+
+        double get_timestamp(const std::string& asset_path) {
+            if (connection == nullptr) {
+                return 1.0;
             }
 
-            return true;
-        }
-    }
-
-    double get_timestamp(const std::string& asset_path) {
-        if (connection == nullptr) {
-            return 1.0;
-        }
-
-        mutex_scoped_lock sc(connection_mutex);
-        const auto cached_result = cached_queries.find(asset_path);
-        if (cached_result == cached_queries.end() || cached_result->second.state == CACHE_MISSING) {
-            TF_WARN("[uberResolver] %s is missing when querying timestamps!", asset_path.c_str());
-            return 1.0;
-        } else {
-            const auto ret = get_timestamp_raw(connection, table_name, asset_path);
-            if (ret > cached_result->second.timestamp) {
-                cached_result->second.state = CACHE_NEEDS_FETCHING;
+            mutex_scoped_lock sc(connection_mutex);
+            const auto cached_result = cached_queries.find(asset_path);
+            if (cached_result == cached_queries.end() ||
+                cached_result->second.state == CACHE_MISSING) {
+                TF_WARN("[uberResolver] %s is missing when querying timestamps!",
+                        asset_path.c_str());
+                return 1.0;
             }
-            return ret;
+            else {
+                const auto ret = get_timestamp_raw(connection, table_name,
+                                                   asset_path);
+                if (ret > cached_result->second.timestamp) {
+                    cached_result->second.state = CACHE_NEEDS_FETCHING;
+                }
+                return ret;
+            }
         }
+    };
+
+    SQL::SQL() {
+        my_init();
     }
-};
 
-SQL::SQL() {
-    my_init();
-}
-
-SQL::~SQL() {
-    clear();
-}
-
-void SQL::clear() {
-    sql_thread_init();
-    mutex_scoped_lock sc(connections_mutex);
-    for (const auto& connection : connections) {
-        delete connection.second;
+    SQL::~SQL() {
+        clear();
     }
-    connections.clear();
-}
 
-SQLConnection* SQL::get_connection(bool create) {
-    sql_thread_init();
-    SQLConnection* conn = nullptr;
-    {
-        const auto server_name = getenv(HOST_ENV_VAR);
-        if (server_name == nullptr) {
-            TF_WARN("[uberResolver] Could not get host name - make sure $%s"
-                " is defined", HOST_ENV_VAR);
-            return conn;
-        }
+    void SQL::clear() {
+        sql_thread_init();
         mutex_scoped_lock sc(connections_mutex);
-        conn = find_in_sorted_vector<connection_pair::first_type,
-            connection_pair::second_type, nullptr>(connections, server_name);
-        if (create && conn == nullptr) { // initialize new connection
-            // TODO
-            conn = new SQLConnection(server_name);
-            connections.push_back(connection_pair{server_name, conn});
-            sort_connections();
+        for (const auto& connection : connections) {
+            delete connection.second;
+        }
+        connections.clear();
+    }
+
+    SQLConnection* SQL::get_connection(bool create) {
+        sql_thread_init();
+        SQLConnection* conn = nullptr;
+        {
+            const auto server_name = getenv(HOST_ENV_VAR);
+            if (server_name == nullptr) {
+                TF_WARN("[uberResolver] Could not get host name - make sure $%s"
+                                " is defined", HOST_ENV_VAR);
+                return conn;
+            }
+            mutex_scoped_lock sc(connections_mutex);
+            conn = find_in_sorted_vector<connection_pair::first_type,
+                    connection_pair::second_type, nullptr>(connections,
+                                                           server_name);
+            if (create && conn == nullptr) { // initialize new connection
+                // TODO
+                conn = new SQLConnection(server_name);
+                connections.push_back(connection_pair{server_name, conn});
+                sort_connections();
+            }
+        }
+        return conn;
+    }
+
+    std::string SQL::resolve_name(const std::string& path) {
+        const auto parsed_path = parse_path(path);
+        auto conn = get_connection(true);
+        if (conn == nullptr) {
+            return "";
+        }
+        else {
+            return conn->resolve_name(parsed_path);
         }
     }
-    return conn;
-}
 
-std::string SQL::resolve_name(const std::string& path) {
-    const auto parsed_path = parse_path(path);
-    auto conn = get_connection(true);
-    if (conn == nullptr) {
-        return "";
+    bool SQL::fetch_asset(const std::string& path) {
+        const auto parsed_path = parse_path(path);
+        auto conn = get_connection(false);
+        // fetching asset will be after resolving, thus there should be a server
+        if (conn == nullptr) {
+            return false;
+        }
+        else {
+            return conn->fetch(parsed_path);
+        }
     }
-    else {
-        return conn->resolve_name(parsed_path);
+
+    bool SQL::matches_schema(const std::string& path) {
+        return path.find(SQL_PREFIX) == 0;
     }
-}
 
-bool SQL::fetch_asset(const std::string& path) {
-    const auto parsed_path = parse_path(path);
-    auto conn = get_connection(false);
-    // fetching asset will be after resolving, thus there should be a server
-    if (conn == nullptr) {
-        return false;
-    } else {
-        return conn->fetch(parsed_path);
+    double SQL::get_timestamp(const std::string& path) {
+        const auto parsed_path = parse_path(path);
+        auto conn = get_connection(false);
+        if (conn == nullptr) {
+            return 1.0;
+        }
+        else {
+            return conn->get_timestamp(parsed_path);
+        }
     }
-}
 
-bool SQL::matches_schema(const std::string& path) {
-    return path.find(SQL_PREFIX) == 0;
-}
-
-double SQL::get_timestamp(const std::string& path) {
-    const auto parsed_path = parse_path(path);
-    auto conn = get_connection(false);
-    if (conn == nullptr) {
-        return 1.0;
-    } else {
-        return conn->get_timestamp(parsed_path);
+    void SQL::sort_connections() {
+        // auto in lambdas require c++14 :(
+        std::sort(connections.begin(), connections.end(),
+                  [](const connection_pair& a, const connection_pair& b) {
+                      return a.first < b.first;
+                  });
     }
-}
-
-void SQL::sort_connections() {
-    // auto in lambdas require c++14 :(
-    std::sort(connections.begin(), connections.end(), [](const connection_pair& a, const connection_pair& b) {
-        return a.first < b.first;
-    });
 }

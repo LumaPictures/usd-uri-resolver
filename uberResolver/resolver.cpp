@@ -23,7 +23,7 @@
  */
 
 namespace {
-    SQL g_sql;
+    usd_sql::SQL g_sql;
 }
 
 AR_DEFINE_RESOLVER(uberResolver, ArResolver)
