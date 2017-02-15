@@ -19,7 +19,7 @@ public:
     double get_timestamp(const std::string& path);
 private:
     using connection_pair = std::pair<std::string, SQLConnection*>;
-    SQLConnection* get_connection(const std::string& server_name, bool create);
+    SQLConnection* get_connection(bool create);
     void sort_connections();
     std::mutex connections_mutex;
     std::vector<connection_pair> connections;

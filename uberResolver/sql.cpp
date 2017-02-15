@@ -63,18 +63,9 @@ namespace {
         }
     }
 
-    std::tuple<std::string, std::string> parse_path(const std::string& path) {
+    std::string parse_path(const std::string& path) {
         constexpr auto schema_length = strlen("sql://");
-        const auto query_path = path.substr(schema_length);
-        const auto first_slash = query_path.find("/");
-        if (first_slash == std::string::npos || first_slash == 0) {
-            return std::tuple<std::string, std::string>{"", ""};
-        } else {
-            const auto server_name = query_path.substr(0, first_slash);
-            // the lib has issues when using localhost instead of the ip address
-            return std::tuple<std::string, std::string>{server_name == "localhost" ? "127.0.0.1" : server_name,
-                                                        query_path.substr(first_slash)};
-        }
+        return path.substr(schema_length);
     }
 
     double convert_char_to_time(const char* raw_time) {
@@ -318,10 +309,16 @@ void SQL::clear() {
     connections.clear();
 }
 
-SQLConnection* SQL::get_connection(const std::string& server_name, bool create) {
+SQLConnection* SQL::get_connection(bool create) {
     sql_thread_init();
     SQLConnection* conn = nullptr;
     {
+        const auto server_name = getenv("USD_SQL_DBHOST");
+        if (server_name == nullptr) {
+            TF_WARN("[uberResolver] Could not get host name - make sure $%s"
+                " is defined", "USD_SQL_DBHOST");
+            return conn;
+        }
         mutex_scoped_lock sc(connections_mutex);
         conn = find_in_sorted_vector<connection_pair::first_type,
             connection_pair::second_type, nullptr>(connections, server_name);
@@ -337,18 +334,23 @@ SQLConnection* SQL::get_connection(const std::string& server_name, bool create) 
 
 std::string SQL::resolve_name(const std::string& path) {
     const auto parsed_path = parse_path(path);
-    auto conn = get_connection(std::get<0>(parsed_path), true);
-    return conn->resolve_name(std::get<1>(parsed_path));
+    auto conn = get_connection(true);
+    if (conn == nullptr) {
+        return "";
+    }
+    else {
+        return conn->resolve_name(parsed_path);
+    }
 }
 
 bool SQL::fetch_asset(const std::string& path) {
     const auto parsed_path = parse_path(path);
-    auto conn = get_connection(std::get<0>(parsed_path), false);
+    auto conn = get_connection(false);
     // fetching asset will be after resolving, thus there should be a server
     if (conn == nullptr) {
         return false;
     } else {
-        return conn->fetch(std::get<1>(parsed_path));
+        return conn->fetch(parsed_path);
     }
 }
 
@@ -358,11 +360,11 @@ bool SQL::matches_schema(const std::string& path) {
 
 double SQL::get_timestamp(const std::string& path) {
     const auto parsed_path = parse_path(path);
-    auto conn = get_connection(std::get<0>(parsed_path), false);
+    auto conn = get_connection(false);
     if (conn == nullptr) {
         return 1.0;
     } else {
-        return conn->get_timestamp(std::get<1>(parsed_path));
+        return conn->get_timestamp(parsed_path);
     }
 }
 
