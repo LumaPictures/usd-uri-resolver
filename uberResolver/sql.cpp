@@ -64,7 +64,7 @@ namespace {
     }
 
     std::string parse_path(const std::string& path) {
-        constexpr auto schema_length = strlen("sql://");
+        constexpr auto schema_length = strlen(SQL_PREFIX);
         return path.substr(schema_length);
     }
 
@@ -136,18 +136,18 @@ struct SQLConnection {
     MYSQL* connection;
 
     SQLConnection(const std::string& server_name) : connection(mysql_init(nullptr)) {
-        cache_path = get_env_var(server_name, "USD_SQL_CACHE_PATH", "/tmp/");
+        cache_path = get_env_var(server_name, CACHE_PATH_ENV_VAR, "/tmp/");
         if (cache_path.back() != '/') {
             cache_path += "/";
         }
-        const auto server_user = get_env_var(server_name, "USD_SQL_USER", "root");
+        const auto server_user = get_env_var(server_name, USER_ENV_VAR, "root");
         const std::string compacted_default_pass = z85::encode_with_padding(std::string("12345678"));
-        auto server_password = get_env_var(server_name, "USD_SQL_PASSWD", compacted_default_pass);
+        auto server_password = get_env_var(server_name, PASSWORD_ENV_VAR, compacted_default_pass);
         server_password = z85::decode_with_padding(server_password);
-        const auto server_db = get_env_var(server_name, "USD_SQL_DB", "usd");
-        table_name = get_env_var(server_name, "USD_SQL_TABLE", "headers");
+        const auto server_db = get_env_var(server_name, DB_ENV_VAR, "usd");
+        table_name = get_env_var(server_name, TABLE_ENV_VAR, "headers");
         const auto server_port = static_cast<unsigned int>(
-            atoi(get_env_var(server_name, "USD_SQL_PORT", "3306").c_str()));
+            atoi(get_env_var(server_name, PORT_ENV_VAR, "3306").c_str()));
         const auto ret = mysql_real_connect(
             connection, server_name.c_str(),
             server_user.c_str(), server_password.c_str(),
@@ -313,10 +313,10 @@ SQLConnection* SQL::get_connection(bool create) {
     sql_thread_init();
     SQLConnection* conn = nullptr;
     {
-        const auto server_name = getenv("USD_SQL_DBHOST");
+        const auto server_name = getenv(HOST_ENV_VAR);
         if (server_name == nullptr) {
             TF_WARN("[uberResolver] Could not get host name - make sure $%s"
-                " is defined", "USD_SQL_DBHOST");
+                " is defined", HOST_ENV_VAR);
             return conn;
         }
         mutex_scoped_lock sc(connections_mutex);
@@ -355,7 +355,7 @@ bool SQL::fetch_asset(const std::string& path) {
 }
 
 bool SQL::matches_schema(const std::string& path) {
-    return path.find("sql://") == 0;
+    return path.find(SQL_PREFIX) == 0;
 }
 
 double SQL::get_timestamp(const std::string& path) {

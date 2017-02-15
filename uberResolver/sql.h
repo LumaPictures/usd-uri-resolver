@@ -7,6 +7,15 @@
 
 struct SQLConnection;
 
+constexpr const char SQL_PREFIX[] = "sql://";
+constexpr const char HOST_ENV_VAR[] = "USD_SQL_DBHOST";
+constexpr const char PORT_ENV_VAR[] = "USD_SQL_PORT";
+constexpr const char DB_ENV_VAR[] = "USD_SQL_DB";
+constexpr const char TABLE_ENV_VAR[] = "USD_SQL_TABLE";
+constexpr const char USER_ENV_VAR[] = "USD_SQL_USER";
+constexpr const char PASSWORD_ENV_VAR[] = "USD_SQL_PASSWD";
+constexpr const char CACHE_PATH_ENV_VAR[] = "USD_SQL_CACHE_PATH";
+
 class SQL {
 public:
     SQL();
