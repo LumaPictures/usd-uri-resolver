@@ -43,6 +43,23 @@
 
 // -------------------------------------------------------------------------------
 
+// If you want to control the number of seconds an idle connection is kept alive
+// for, set this to something other than zero
+
+#define SESSION_WAIT_TIMEOUT 0
+
+#if SESSION_WAIT_TIMEOUT > 0
+
+#define _USD_SQL_SIMPLE_QUOTE(ARG) #ARG
+#define _USD_SQL_EXPAND_AND_QUOTE(ARG) _SIMPLE_QUOTE(ARG)
+#define SET_SESSION_WAIT_TIMEOUT_QUERY ( "SET SESSION wait_timeout=" _USD_SQL_EXPAND_AND_QUOTE( SESSION_WAIT_TIMEOUT ) )
+#define SET_SESSION_WAIT_TIMEOUT_QUERY_STRLEN ( sizeof(SET_SESSION_WAIT_TIMEOUT_QUERY) - 1 )
+
+
+#endif // SESSION_WAIT_TIMEOUT
+
+// -------------------------------------------------------------------------------
+
 namespace {
     using mutex_scoped_lock = std::lock_guard<std::mutex>;
 
@@ -190,6 +207,18 @@ namespace usd_sql {
                         server_name.c_str(), mysql_error(connection));
                 connection = nullptr;
             }
+#if SESSION_WAIT_TIMEOUT > 0
+            else {
+                const auto query_ret = mysql_real_query(connection,
+                                                        SET_SESSION_WAIT_TIMEOUT_QUERY,
+                                                        SET_SESSION_WAIT_TIMEOUT_QUERY_STRLEN);
+                if (query_ret != 0) {
+                    SQL_WARN("[uberResolver] Error executing query: %s\nError code: %i\nError string: %s",
+                             SET_SESSION_WAIT_TIMEOUT_QUERY, mysql_errno(connection), mysql_error(connection));
+                }
+
+            }
+#endif // SESSION_WAIT_TIMEOUT
         }
 
         ~SQLConnection() {
