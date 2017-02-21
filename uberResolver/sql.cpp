@@ -16,6 +16,33 @@
 
 #include <z85/z85.hpp>
 
+// -------------------------------------------------------------------------------
+// If you want to print out a stacktrace everywhere SQL_WARN is called, set this
+// to a value > 0 - it will print out this number of stacktrace entries
+#define USD_SQL_DEBUG_STACKTRACE_SIZE 0
+
+#if USD_SQL_DEBUG_STACKTRACE_SIZE > 0
+
+#include <execinfo.h>
+
+#define SQL_WARN \
+    { \
+        void* backtrace_array[USD_SQL_DEBUG_STACKTRACE_SIZE]; \
+        size_t stack_size = backtrace(backtrace_array, USD_SQL_DEBUG_STACKTRACE_SIZE); \
+        TF_WARN("\n\n====================================\n"); \
+        TF_WARN("Stacktrace:\n"); \
+        backtrace_symbols_fd(backtrace_array, stack_size, STDERR_FILENO); \
+    } \
+    TF_WARN
+
+#else // STACKTRACE_SIZE
+
+#define SQL_WARN TF_WARN
+
+#endif // STACKTRACE_SIZE
+
+// -------------------------------------------------------------------------------
+
 namespace {
     using mutex_scoped_lock = std::lock_guard<std::mutex>;
 
@@ -91,7 +118,7 @@ namespace {
         const auto query_ret = mysql_real_query(connection, query, query_length);
         // I only have to flush when there is a successful query.
         if (query_ret != 0) {
-            TF_WARN("[uberResolver] Error executing query: %s\nError code: %i\nError string: %s",
+            SQL_WARN("[uberResolver] Error executing query: %s\nError code: %i\nError string: %s",
                     query, mysql_errno(connection), mysql_error(connection));
         } else {
             result = mysql_store_result(connection);
@@ -109,7 +136,7 @@ namespace {
                     ret = convert_char_to_time(row[0]);
                 }
             } else {
-                TF_WARN("[uberResolver] Wrong type for time field. Found %i instead of 7.", field->type);
+                SQL_WARN("[uberResolver] Wrong type for time field. Found %i instead of 7.", field->type);
             }
             mysql_free_result(result);
         }
@@ -159,7 +186,7 @@ namespace usd_sql {
                     server_db.c_str(), server_port, nullptr, 0);
             if (ret == nullptr) {
                 mysql_close(connection);
-                TF_WARN("[uberResolver] Failed to connect to: %s\nReason: %s",
+                SQL_WARN("[uberResolver] Failed to connect to: %s\nReason: %s",
                         server_name.c_str(), mysql_error(connection));
                 connection = nullptr;
             }
@@ -200,7 +227,7 @@ namespace usd_sql {
                                                     query_length);
             // I only have to flush when there is a successful query.
             if (query_ret != 0) {
-                TF_WARN("[uberResolver] Error executing query: %s\nError code: %i\nError string: %s",
+                SQL_WARN("[uberResolver] Error executing query: %s\nError code: %i\nError string: %s",
                         query, mysql_errno(connection), mysql_error(connection));
             }
             else {
@@ -237,7 +264,7 @@ namespace usd_sql {
             mutex_scoped_lock sc(connection_mutex);
             const auto cached_result = cached_queries.find(asset_path);
             if (cached_result == cached_queries.end()) {
-                TF_WARN("[uberResolver] %s was not resolved before fetching!",
+                SQL_WARN("[uberResolver] %s was not resolved before fetching!",
                         asset_path.c_str());
                 return false;
             }
@@ -259,7 +286,7 @@ namespace usd_sql {
                                                             query_length);
                     // I only have to flush when there is a successful query.
                     if (query_ret != 0) {
-                        TF_WARN("[uberResolver] Error executing query: %s\nError code: %i\nError string: %s",
+                        SQL_WARN("[uberResolver] Error executing query: %s\nError code: %i\nError string: %s",
                                 query, mysql_errno(connection),
                                 mysql_error(connection));
                     }
@@ -298,7 +325,7 @@ namespace usd_sql {
             const auto cached_result = cached_queries.find(asset_path);
             if (cached_result == cached_queries.end() ||
                 cached_result->second.state == CACHE_MISSING) {
-                TF_WARN("[uberResolver] %s is missing when querying timestamps!",
+                SQL_WARN("[uberResolver] %s is missing when querying timestamps!",
                         asset_path.c_str());
                 return 1.0;
             }
@@ -336,7 +363,7 @@ namespace usd_sql {
         {
             const auto server_name = getenv(HOST_ENV_VAR);
             if (server_name == nullptr) {
-                TF_WARN("[uberResolver] Could not get host name - make sure $%s"
+                SQL_WARN("[uberResolver] Could not get host name - make sure $%s"
                                 " is defined", HOST_ENV_VAR);
                 return conn;
             }
