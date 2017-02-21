@@ -197,6 +197,20 @@ namespace usd_sql {
             table_name = get_env_var(server_name, TABLE_ENV_VAR, "headers");
             const auto server_port = static_cast<unsigned int>(
                     atoi(get_env_var(server_name, PORT_ENV_VAR, "3306").c_str()));
+            // Turn on auto-reconnect
+            // Note that it IS still possible for the reconnect to fail, and we
+            // don't do any explicit check for this; experimented with also adding
+            // a check with mysql_ping in get_connection after retrieving
+            // a cached result, but decided against this approach, as it added
+            // a lot of extra spam if something DID go wrong (because a lot of
+            // resolve name calls will still "work" by just using the cached
+            // result
+            // Also, it's good practice to add error checking after every usage
+            // of mysql anyway (can fail in more ways than just connection being
+            // lost), so these will catch / print error when reconnection fails
+            // as well
+            my_bool reconnect = 1;
+            mysql_options(connection, MYSQL_OPT_RECONNECT, &reconnect);
             const auto ret = mysql_real_connect(
                     connection, server_name.c_str(),
                     server_user.c_str(), server_password.c_str(),
