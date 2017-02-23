@@ -5,13 +5,15 @@ add_subdirectory(obfuscate_pass)
 
 set(PLUGIN_NAME uberResolver)
 
-find_package(Boost)
-find_package(PythonLibs)
+find_package(Boost REQUIRED)
+find_package(PythonLibs REQUIRED)
+find_package(OpenEXR REQUIRED)
 
 include_directories(SYSTEM $ENV{USD_ROOT}/include)
 include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
 include_directories(SYSTEM ${PYTHON_INCLUDE_DIRS})
 include_directories(SYSTEM ${MYSQL_CONNECTOR_ROOT}/include)
+include_directories(SYSTEM ${OPENEXR_INCLUDE_DIRS})
 
 link_directories($ENV{USD_ROOT}/lib)
 
