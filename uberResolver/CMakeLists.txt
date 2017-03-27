@@ -8,12 +8,14 @@ set(PLUGIN_NAME uberResolver)
 find_package(Boost REQUIRED)
 find_package(PythonLibs REQUIRED)
 find_package(OpenEXR REQUIRED)
+find_package(TBB REQUIRED)
 
 include_directories(SYSTEM $ENV{USD_ROOT}/include)
 include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
 include_directories(SYSTEM ${PYTHON_INCLUDE_DIRS})
 include_directories(SYSTEM ${MYSQL_CONNECTOR_ROOT}/include)
 include_directories(SYSTEM ${OPENEXR_INCLUDE_DIRS})
+include_directories(SYSTEM ${TBB_INCLUDE_DIRS})
 
 link_directories($ENV{USD_ROOT}/lib)
 
@@ -22,7 +24,6 @@ find_library(MYSQL_CONNECTOR_LIBRARY
              HINTS ${MYSQL_CONNECTOR_ROOT}/lib)
 
 message(STATUS "MySql connector library : ${MYSQL_CONNECTOR_LIBRARY}")
-
 
 file(GLOB SRC *.cpp)
 

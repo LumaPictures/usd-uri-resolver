@@ -188,7 +188,7 @@ namespace usd_sql {
             }
             const auto server_user = get_env_var(server_name, USER_ENV_VAR,
                                                  "root");
-            const std::string compacted_default_pass = z85::encode_with_padding(
+            const auto compacted_default_pass = z85::encode_with_padding(
                     std::string("12345678"));
             auto server_password = get_env_var(server_name, PASSWORD_ENV_VAR,
                                                compacted_default_pass);
@@ -265,7 +265,7 @@ namespace usd_sql {
             snprintf(query, query_max_length,
                      "SELECT EXISTS(SELECT 1 FROM %s WHERE path = '%s')",
                      table_name.c_str(), asset_path.c_str());
-            unsigned long query_length = strlen(query);
+            auto query_length = strlen(query);
             const auto query_ret = mysql_real_query(connection, query,
                                                     query_length);
             // I only have to flush when there is a successful query.
