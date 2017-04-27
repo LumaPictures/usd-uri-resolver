@@ -4,6 +4,7 @@
 #include <pxr/usd/ar/resolverContext.h>
 
 #include <pxr/usd/ar/defineResolver.h>
+#include <pxr/usd/ar/defaultResolver.h>
 
 #include <map>
 #include <cstdio>
@@ -21,6 +22,8 @@
  * resolver paths in a sorted vector, rather than a map. That's way faster when we are
  * doing significantly more queries inserts.
  */
+
+PXR_NAMESPACE_OPEN_SCOPE
 
 namespace {
     usd_sql::SQL g_sql;
@@ -81,3 +84,5 @@ bool uberResolver::FetchToLocalResolvedPath(const std::string& path, const std::
         return true;
     }
 }
+
+PXR_NAMESPACE_CLOSE_SCOPE

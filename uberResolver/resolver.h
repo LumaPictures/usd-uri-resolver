@@ -8,6 +8,8 @@
 #include <string>
 #include <vector>
 
+PXR_NAMESPACE_OPEN_SCOPE
+
 /// \class uberResolver
 ///
 /// Generic resolver to handle Luma needs.
@@ -39,3 +41,5 @@ public:
         const std::string& path,
         const std::string& resolvedPath) override;
 };
+
+PXR_NAMESPACE_CLOSE_SCOPE

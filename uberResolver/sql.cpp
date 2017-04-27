@@ -16,6 +16,8 @@
 
 #include <z85/z85.hpp>
 
+PXR_NAMESPACE_USING_DIRECTIVE
+
 // -------------------------------------------------------------------------------
 // If you want to print out a stacktrace everywhere SQL_WARN is called, set this
 // to a value > 0 - it will print out this number of stacktrace entries
