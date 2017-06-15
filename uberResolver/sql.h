@@ -7,8 +7,9 @@
 
 namespace usd_sql {
     struct SQLConnection;
-
+    
     constexpr auto SQL_PREFIX = "sql://";
+    constexpr auto SQL_PREFIX_SHORT = "sql:";
     constexpr auto HOST_ENV_VAR = "USD_SQL_DBHOST";
     constexpr auto PORT_ENV_VAR = "USD_SQL_PORT";
     constexpr auto DB_ENV_VAR = "USD_SQL_DB";

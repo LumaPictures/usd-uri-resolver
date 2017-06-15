@@ -110,8 +110,13 @@ namespace {
     }
 
     std::string parse_path(const std::string& path) {
+        constexpr auto schema_length_short = strlen(usd_sql::SQL_PREFIX_SHORT);
         constexpr auto schema_length = strlen(usd_sql::SQL_PREFIX);
-        return path.substr(schema_length);
+        if (path.find(usd_sql::SQL_PREFIX) == 0) {
+            return path.substr(schema_length);
+        } else {
+            return path.substr(schema_length_short);
+        }
     }
 
     double convert_char_to_time(const char* raw_time) {
@@ -450,7 +455,7 @@ namespace usd_sql {
     }
 
     bool SQL::matches_schema(const std::string& path) {
-        return path.find(SQL_PREFIX) == 0;
+        return path.find(SQL_PREFIX_SHORT) == 0;
     }
 
     double SQL::get_timestamp(const std::string& path) {
