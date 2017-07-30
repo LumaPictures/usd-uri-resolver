@@ -10,8 +10,8 @@
           }
         }
       },
-      "LibraryPath": "../uberResolver.so",
-      "Name": "uberResolver",
+      "LibraryPath": "../uriResolver.so",
+      "Name": "uriResolver",
       "ResourcePath": "resources",
       "Root": "..",
       "Type": "library"

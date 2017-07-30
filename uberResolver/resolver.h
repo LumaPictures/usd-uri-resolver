@@ -14,12 +14,12 @@ PXR_NAMESPACE_OPEN_SCOPE
 ///
 /// Generic resolver to handle Luma needs.
 ///
-class uberResolver
+class URIResolver
     : public ArDefaultResolver
 {
 public:
-    uberResolver();
-    virtual ~uberResolver();
+    URIResolver();
+    virtual ~URIResolver();
 
     virtual std::string Resolve(const std::string& path) override;
 

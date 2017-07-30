@@ -29,23 +29,23 @@ namespace {
     usd_sql::SQL g_sql;
 }
 
-AR_DEFINE_RESOLVER(uberResolver, ArResolver)
+AR_DEFINE_RESOLVER(URIResolver, ArResolver)
 
-uberResolver::uberResolver() : ArDefaultResolver()
+URIResolver::URIResolver() : ArDefaultResolver()
 {
 }
 
-uberResolver::~uberResolver()
+URIResolver::~URIResolver()
 {
     g_sql.clear();
 }
 
-std::string uberResolver::Resolve(const std::string& path)
+std::string URIResolver::Resolve(const std::string& path)
 {
-    return uberResolver::ResolveWithAssetInfo(path, nullptr);
+    return URIResolver::ResolveWithAssetInfo(path, nullptr);
 }
 
-std::string uberResolver::ResolveWithAssetInfo(
+std::string URIResolver::ResolveWithAssetInfo(
     const std::string& path,
     ArAssetInfo* assetInfo)
 {
@@ -56,7 +56,7 @@ std::string uberResolver::ResolveWithAssetInfo(
     }
 }
 
-void uberResolver::UpdateAssetInfo(
+void URIResolver::UpdateAssetInfo(
     const std::string& identifier,
     const std::string& filePath,
     const std::string& fileVersion,
@@ -65,7 +65,7 @@ void uberResolver::UpdateAssetInfo(
     ArDefaultResolver::UpdateAssetInfo(identifier, filePath, fileVersion, assetInfo);
 }
 
-VtValue uberResolver::GetModificationTimestamp(
+VtValue URIResolver::GetModificationTimestamp(
     const std::string& path,
     const std::string& resolvedPath)
 {
@@ -76,7 +76,7 @@ VtValue uberResolver::GetModificationTimestamp(
     }
 }
 
-bool uberResolver::FetchToLocalResolvedPath(const std::string& path, const std::string& resolvedPath)
+bool URIResolver::FetchToLocalResolvedPath(const std::string& path, const std::string& resolvedPath)
 {
     if (g_sql.matches_schema(path)) {
         return g_sql.fetch_asset(path);

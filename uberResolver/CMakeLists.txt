@@ -3,7 +3,7 @@ file(GLOB Z85_SRC ../external/z85/*.c*)
 
 add_subdirectory(obfuscate_pass)
 
-set(PLUGIN_NAME uberResolver)
+set(PLUGIN_NAME uriResolver)
 
 find_package(Boost REQUIRED)
 find_package(PythonLibs REQUIRED)
@@ -22,8 +22,6 @@ link_directories($ENV{USD_ROOT}/lib)
 find_library(MYSQL_CONNECTOR_LIBRARY
              name libmysqlclient.a
              HINTS ${MYSQL_CONNECTOR_ROOT}/lib)
-
-message(STATUS "MySql connector library : ${MYSQL_CONNECTOR_LIBRARY}")
 
 file(GLOB SRC *.cpp)
 
