@@ -10,7 +10,7 @@
 
 PXR_NAMESPACE_OPEN_SCOPE
 
-/// \class uberResolver
+/// \class URIResolver
 ///
 /// Generic resolver to handle Luma needs.
 ///

@@ -3,7 +3,7 @@ file(GLOB Z85_SRC ../external/z85/*.c*)
 
 add_subdirectory(obfuscate_pass)
 
-set(PLUGIN_NAME uriResolver)
+set(PLUGIN_NAME URIResolver)
 
 find_package(Boost REQUIRED)
 find_package(PythonLibs REQUIRED)

@@ -1,6 +1,6 @@
-# Usage of the Uber Resolver
+# Usage of the URI Resolver
 
-Currently the Uber Resolver provides support for an alternative protocol, when referencing other usd files, namely loading data from an SQL database.
+Currently the URI Resolver provides support for an alternative protocol, when referencing other usd files, namely loading data from an SQL database.
 
 ## SQL Protocol
 
@@ -35,4 +35,4 @@ Each environment variable can be either setup globally, or server specific. Firs
 
 #### Password obfuscation
 
-To avoid storing passwords directly in pipeline files (typically python), the resolver provides a small application that obfuscates passwords. The usage is simple, just call uber_resolver_obfuscate_pass <password> and use the returned value when setting up environment variables. The goal of this is not to provide absolute safety, but to hide passwords from the non-coder eyes.
+To avoid storing passwords directly in pipeline files (typically python), the resolver provides a small application that obfuscates passwords. The usage is simple, just call uri_resolver_obfuscate_pass <password> and use the returned value when setting up environment variables. The goal of this is not to provide absolute safety, but to hide passwords from the non-coder eyes.

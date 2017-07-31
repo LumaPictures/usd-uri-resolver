@@ -3,7 +3,7 @@ project(luma_usd)
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 
 add_compile_options(-Wall -std=c++11 -DBUILD_OPTLEVEL_OPT -DBUILD_COMPONENT_SRC_PREFIX="")
-option(ENABLE_RESOLVER_BUILD "Enabling building the uber resolver." On)
+option(ENABLE_RESOLVER_BUILD "Enabling building the uri resolver." On)
 
 cmake_minimum_required(VERSION 2.8)
 
