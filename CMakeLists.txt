@@ -8,7 +8,7 @@ option(ENABLE_RESOLVER_BUILD "Enabling building the uri resolver." On)
 cmake_minimum_required(VERSION 2.8)
 
 if (ENABLE_RESOLVER_BUILD)
-    add_subdirectory(uberResolver)
+    add_subdirectory(URIResolver)
 endif ()
 
 add_subdirectory(external)
