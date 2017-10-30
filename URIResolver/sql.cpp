@@ -1,4 +1,5 @@
 #include "sql.h"
+#include "debugCodes.h"
 
 #include <pxr/base/tf/diagnosticLite.h>
 
@@ -139,6 +140,7 @@ namespace {
                  "SELECT timestamp FROM %s WHERE path = '%s' LIMIT 1",
                  table_name.c_str(), asset_path.c_str());
         unsigned long query_length = strlen(query);
+        TF_DEBUG(USD_URI_RESOLVER).Msg("get_timestamp_raw: query:\n%s\n", query);
         const auto query_ret = mysql_real_query(connection, query, query_length);
         // I only have to flush when there is a successful query.
         if (query_ret != 0) {
@@ -163,6 +165,7 @@ namespace {
                 SQL_WARN("[SQLResolver] Wrong type for time field. Found %i instead of 7.", field->type);
             }
             mysql_free_result(result);
+            TF_DEBUG(USD_URI_RESOLVER).Msg("get_timestamp_raw: got: %f\n", ret);
         }
         return ret;
     }
@@ -245,20 +248,25 @@ namespace usd_sql {
         ~SQLConnection() {
             for (const auto& cache: cached_queries) {
                 if (cache.second.state == CACHE_FETCHED) {
-                    remove(cache.second.local_path.c_str());
+                    auto local_path = cache.second.local_path.c_str();
+                    TF_DEBUG(USD_URI_RESOLVER).Msg("SQLConnection~SQLConnection: removing local path: %s\n", local_path);
+                    remove(local_path);
                 }
             }
             mysql_close(connection);
         }
 
         std::string resolve_name(const std::string& asset_path) {
+            TF_DEBUG(USD_URI_RESOLVER).Msg("SQLConnection::resolve_name: '%s'\n", asset_path.c_str());
             if (connection == nullptr) {
+                TF_DEBUG(USD_URI_RESOLVER).Msg("SQLConnection::resolve_name: aborting to do null connection pointer\n");
                 return "";
             }
             mutex_scoped_lock sc(connection_mutex);
 
             const auto cached_result = cached_queries.find(asset_path);
             if (cached_result != cached_queries.end()) {
+                TF_DEBUG(USD_URI_RESOLVER).Msg("SQLConnection::resolve_name: using cached result: '%s'\n", cached_result->second.local_path.c_str());
                 return cached_result->second.local_path;
             }
             Cache cache{
@@ -273,6 +281,7 @@ namespace usd_sql {
                      "SELECT EXISTS(SELECT 1 FROM %s WHERE path = '%s')",
                      table_name.c_str(), asset_path.c_str());
             auto query_length = strlen(query);
+            TF_DEBUG(USD_URI_RESOLVER).Msg("SQLConnection::resolve_name: query:\n%s\n", query);
             const auto query_ret = mysql_real_query(connection, query,
                                                     query_length);
             // I only have to flush when there is a successful query.
@@ -289,6 +298,7 @@ namespace usd_sql {
                 auto row = mysql_fetch_row(result);
                 assert(mysql_num_fields(result) == 1);
                 if (row[0] != nullptr && strcmp(row[0], "1") == 0) {
+                    TF_DEBUG(USD_URI_RESOLVER).Msg("SQLConnection::resolve_name: found: %s\n", asset_path.c_str());
                     const auto last_dot = asset_path.find_last_of('.');
                     if (last_dot != std::string::npos) {
                         cache.local_path = generate_name(cache_path,
@@ -299,15 +309,21 @@ namespace usd_sql {
                         cache.timestamp = 1.0;
                     }
                 }
+                else {
+                    TF_DEBUG(USD_URI_RESOLVER).Msg("SQLConnection::resolve_name: not found...\n");
+                }
                 mysql_free_result(result);
             }
 
+            TF_DEBUG(USD_URI_RESOLVER).Msg("SQLConnection::resolve_name: local path: %s\n", cache.local_path.c_str());
             cached_queries.insert(std::make_pair(asset_path, cache));
             return cache.local_path;
         }
 
         bool fetch(const std::string& asset_path) {
+            TF_DEBUG(USD_URI_RESOLVER).Msg("SQLConnection::fetch: '%s'\n", asset_path.c_str());
             if (connection == nullptr) {
+                TF_DEBUG(USD_URI_RESOLVER).Msg("SQLConnection::fetch: aborting to do null connection pointer\n");
                 return false;
             }
 
@@ -320,6 +336,7 @@ namespace usd_sql {
             }
             else {
                 if (cached_result->second.state == CACHE_MISSING) {
+                    TF_DEBUG(USD_URI_RESOLVER).Msg("SQLConnection::fetch: missing from database, no fetch\n");
                     return false;
                 }
                 else if (cached_result->second.state == CACHE_NEEDS_FETCHING) {
@@ -332,6 +349,7 @@ namespace usd_sql {
                              "SELECT data FROM %s WHERE path = '%s' LIMIT 1",
                              table_name.c_str(), asset_path.c_str());
                     unsigned long query_length = strlen(query);
+                    TF_DEBUG(USD_URI_RESOLVER).Msg("SQLConnection::fetch: query:\n%s\n", query);
                     const auto query_ret = mysql_real_query(connection, query,
                                                             query_length);
                     // I only have to flush when there is a successful query.
@@ -350,6 +368,7 @@ namespace usd_sql {
                         assert(mysql_num_fields(result) == 1);
                         auto field = mysql_fetch_field(result);
                         if (row[0] != nullptr && field->max_length > 0) {
+                            TF_DEBUG(USD_URI_RESOLVER).Msg("SQLConnection::fetch: got data!\n");
                             std::fstream fs(cached_result->second.local_path,
                                             std::ios::out | std::ios::binary);
                             fs.write(row[0], field->max_length);
