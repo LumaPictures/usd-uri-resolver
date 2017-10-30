@@ -259,7 +259,13 @@ namespace usd_sql {
         std::string resolve_name(const std::string& asset_path) {
             TF_DEBUG(USD_URI_RESOLVER).Msg("SQLConnection::resolve_name: '%s'\n", asset_path.c_str());
             if (connection == nullptr) {
-                TF_DEBUG(USD_URI_RESOLVER).Msg("SQLConnection::resolve_name: aborting to do null connection pointer\n");
+                TF_DEBUG(USD_URI_RESOLVER).Msg("SQLConnection::resolve_name: aborting due to null connection pointer\n");
+                return "";
+            }
+
+            const auto last_dot = asset_path.find_last_of('.');
+            if (last_dot == std::string::npos) {
+                TF_DEBUG(USD_URI_RESOLVER).Msg("SQLConnection::resolve_name: asset path missing extension ('%s')\n", asset_path.c_str());
                 return "";
             }
             mutex_scoped_lock sc(connection_mutex);
@@ -269,6 +275,7 @@ namespace usd_sql {
                 TF_DEBUG(USD_URI_RESOLVER).Msg("SQLConnection::resolve_name: using cached result: '%s'\n", cached_result->second.local_path.c_str());
                 return cached_result->second.local_path;
             }
+
             Cache cache{
                     CACHE_MISSING,
                     ""
@@ -299,18 +306,12 @@ namespace usd_sql {
                 assert(mysql_num_fields(result) == 1);
                 if (row[0] != nullptr && strcmp(row[0], "1") == 0) {
                     TF_DEBUG(USD_URI_RESOLVER).Msg("SQLConnection::resolve_name: found: %s\n", asset_path.c_str());
-                    const auto last_dot = asset_path.find_last_of('.');
-                    if (last_dot != std::string::npos) {
-                        cache.local_path = generate_name(cache_path,
-                                                         asset_path.substr(
-                                                                 last_dot),
-                                                         tmp_name_buffer);
-                        cache.state = CACHE_NEEDS_FETCHING;
-                        cache.timestamp = 1.0;
-                    }
-                }
-                else {
-                    TF_DEBUG(USD_URI_RESOLVER).Msg("SQLConnection::resolve_name: not found...\n");
+                    cache.local_path = generate_name(cache_path,
+                                                     asset_path.substr(
+                                                             last_dot),
+                                                     tmp_name_buffer);
+                    cache.state = CACHE_NEEDS_FETCHING;
+                    cache.timestamp = 1.0;
                 }
                 mysql_free_result(result);
             }
@@ -323,7 +324,7 @@ namespace usd_sql {
         bool fetch(const std::string& asset_path) {
             TF_DEBUG(USD_URI_RESOLVER).Msg("SQLConnection::fetch: '%s'\n", asset_path.c_str());
             if (connection == nullptr) {
-                TF_DEBUG(USD_URI_RESOLVER).Msg("SQLConnection::fetch: aborting to do null connection pointer\n");
+                TF_DEBUG(USD_URI_RESOLVER).Msg("SQLConnection::fetch: aborting due to null connection pointer\n");
                 return false;
             }
 
@@ -334,55 +335,60 @@ namespace usd_sql {
                         asset_path.c_str());
                 return false;
             }
-            else {
-                if (cached_result->second.state == CACHE_MISSING) {
-                    TF_DEBUG(USD_URI_RESOLVER).Msg("SQLConnection::fetch: missing from database, no fetch\n");
-                    return false;
-                }
-                else if (cached_result->second.state == CACHE_NEEDS_FETCHING) {
-                    cached_result->second.state = CACHE_MISSING; // we'll set this up if fetching is successful
 
-                    MYSQL_RES* result = nullptr;
-                    constexpr size_t query_max_length = 4096;
-                    char query[query_max_length];
-                    snprintf(query, query_max_length,
-                             "SELECT data FROM %s WHERE path = '%s' LIMIT 1",
-                             table_name.c_str(), asset_path.c_str());
-                    unsigned long query_length = strlen(query);
-                    TF_DEBUG(USD_URI_RESOLVER).Msg("SQLConnection::fetch: query:\n%s\n", query);
-                    const auto query_ret = mysql_real_query(connection, query,
-                                                            query_length);
-                    // I only have to flush when there is a successful query.
-                    if (query_ret != 0) {
-                        SQL_WARN("[SQLResolver] Error executing query: %s\nError code: %i\nError string: %s",
-                                query, mysql_errno(connection),
-                                mysql_error(connection));
-                    }
-                    else {
-                        result = mysql_store_result(connection);
-                    }
-
-                    if (result != nullptr) {
-                        assert(mysql_num_rows(result) == 1);
-                        auto row = mysql_fetch_row(result);
-                        assert(mysql_num_fields(result) == 1);
-                        auto field = mysql_fetch_field(result);
-                        if (row[0] != nullptr && field->max_length > 0) {
-                            TF_DEBUG(USD_URI_RESOLVER).Msg("SQLConnection::fetch: got data!\n");
-                            std::fstream fs(cached_result->second.local_path,
-                                            std::ios::out | std::ios::binary);
-                            fs.write(row[0], field->max_length);
-                            fs.flush();
-                            cached_result->second.state = CACHE_FETCHED;
-                            cached_result->second.timestamp = get_timestamp_raw(
-                                    connection, table_name, asset_path);
-                        }
-                        mysql_free_result(result);
-                    }
-                }
-
-                return true;
+            if (cached_result->second.state == CACHE_MISSING) {
+                TF_DEBUG(USD_URI_RESOLVER).Msg("SQLConnection::fetch: missing from database, no fetch\n");
+                return false;
             }
+
+            if (cached_result->second.state == CACHE_NEEDS_FETCHING) {
+                TF_DEBUG(USD_URI_RESOLVER).Msg("SQLConnection::fetch: Cache needed fetching\n");
+                cached_result->second.state = CACHE_MISSING; // we'll set this up if fetching is successful
+
+                MYSQL_RES* result = nullptr;
+                constexpr size_t query_max_length = 4096;
+                char query[query_max_length];
+                snprintf(query, query_max_length,
+                         "SELECT data FROM %s WHERE path = '%s' LIMIT 1",
+                         table_name.c_str(), asset_path.c_str());
+                unsigned long query_length = strlen(query);
+                TF_DEBUG(USD_URI_RESOLVER).Msg("SQLConnection::fetch: query:\n%s\n", query);
+                const auto query_ret = mysql_real_query(connection, query,
+                                                        query_length);
+                // I only have to flush when there is a successful query.
+                if (query_ret != 0) {
+                    SQL_WARN("[SQLResolver] Error executing query: %s\nError code: %i\nError string: %s",
+                            query, mysql_errno(connection),
+                            mysql_error(connection));
+                }
+                else {
+                    result = mysql_store_result(connection);
+                }
+
+                if (result != nullptr) {
+                    assert(mysql_num_rows(result) == 1);
+                    auto row = mysql_fetch_row(result);
+                    assert(mysql_num_fields(result) == 1);
+                    auto field = mysql_fetch_field(result);
+                    if (row[0] != nullptr && field->max_length > 0) {
+                        TF_DEBUG(USD_URI_RESOLVER).Msg("SQLConnection::fetch: successfully fetched data\n");
+                        std::fstream fs(cached_result->second.local_path,
+                                        std::ios::out | std::ios::binary);
+                        fs.write(row[0], field->max_length);
+                        fs.flush();
+                        cached_result->second.state = CACHE_FETCHED;
+                        cached_result->second.timestamp = get_timestamp_raw(
+                                connection, table_name, asset_path);
+                    }
+                    mysql_free_result(result);
+                }
+            }
+            else
+            {
+                TF_DEBUG(USD_URI_RESOLVER).Msg("SQLConnection::fetch: Cache didn't need fetching\n");
+            }
+
+            return true;
         }
 
         double get_timestamp(const std::string& asset_path) {
