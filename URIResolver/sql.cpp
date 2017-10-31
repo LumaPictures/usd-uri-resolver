@@ -14,6 +14,7 @@
 #include <locale>
 #include <time.h>
 #include <iostream>
+#include <limits>
 
 #include <z85/z85.hpp>
 
@@ -64,6 +65,8 @@ PXR_NAMESPACE_USING_DIRECTIVE
 // -------------------------------------------------------------------------------
 
 namespace {
+    constexpr double INVALID_TIME = std::numeric_limits<double>::lowest();
+
     using mutex_scoped_lock = std::lock_guard<std::mutex>;
 
     std::string generate_name(const std::string& base, const std::string& extension, char* buffer) {
@@ -132,6 +135,31 @@ namespace {
         return mktime(&parsed_time);
     }
 
+    double convert_mysql_result_to_time(MYSQL_FIELD* field, MYSQL_ROW row, size_t field_i)
+    {
+        auto ret = INVALID_TIME;
+
+        if (!row) {
+            SQL_WARN("[SQLResolver] row was null");
+        }
+        else if (!field) {
+            SQL_WARN("[SQLResolver] could not find the field type to retrieve a timestamp");
+        }
+        else if(field->type != MYSQL_TYPE_TIMESTAMP) {
+            SQL_WARN("[SQLResolver] Wrong type for time field. Found %i instead of 7.", field->type);
+        }
+        else if (row[field_i] == nullptr) {
+            SQL_WARN("[SQLResolver] Field %lu was null", field_i);
+        }
+        else if (field->max_length <= 0) {
+            SQL_WARN("[SQLResolver] Field %lu had 0 length", field_i);
+        }
+        else {
+            ret = convert_char_to_time(row[field_i]);
+        }
+        return ret;
+    }
+
     double get_timestamp_raw(MYSQL* connection, const std::string& table_name, const std::string& asset_path) {
         MYSQL_RES* result = nullptr;
         constexpr size_t query_max_length = 4096;
@@ -150,22 +178,22 @@ namespace {
             result = mysql_store_result(connection);
         }
 
-        auto ret = 1.0;
+        auto ret = INVALID_TIME;
 
         if (result != nullptr) {
-            assert(mysql_num_rows(result) == 1);
-            auto row = mysql_fetch_row(result);
-            assert(mysql_num_fields(result) == 1);
-            auto field = mysql_fetch_field(result);
-            if (field->type == MYSQL_TYPE_TIMESTAMP) {
-                if (row[0] != nullptr && field->max_length > 0) {
-                    ret = convert_char_to_time(row[0]);
+            if (mysql_num_rows(result) == 1) {
+                auto row = mysql_fetch_row(result);
+                assert(mysql_num_fields(result) == 1);
+                auto field = mysql_fetch_field(result);
+                ret = convert_mysql_result_to_time(field, row, 0);
+                if (ret == INVALID_TIME) {
+                    TF_DEBUG(USD_URI_RESOLVER).Msg("get_timestamp_raw: failed to convert timestamp\n");
                 }
-            } else {
-                SQL_WARN("[SQLResolver] Wrong type for time field. Found %i instead of 7.", field->type);
+                else {
+                    TF_DEBUG(USD_URI_RESOLVER).Msg("get_timestamp_raw: got: %f\n", ret);
+                }
             }
             mysql_free_result(result);
-            TF_DEBUG(USD_URI_RESOLVER).Msg("get_timestamp_raw: got: %f\n", ret);
         }
         return ret;
     }
@@ -271,54 +299,69 @@ namespace usd_sql {
             mutex_scoped_lock sc(connection_mutex);
 
             const auto cached_result = cached_queries.find(asset_path);
-            if (cached_result != cached_queries.end()) {
-                TF_DEBUG(USD_URI_RESOLVER).Msg("SQLConnection::resolve_name: using cached result: '%s'\n", cached_result->second.local_path.c_str());
-                return cached_result->second.local_path;
-            }
 
-            Cache cache{
-                    CACHE_MISSING,
-                    ""
+            auto fill_cache_data = [&] (Cache& cache) -> std::string {
+                MYSQL_RES* result = nullptr;
+                constexpr size_t query_max_length = 4096;
+                char query[query_max_length];
+                snprintf(query, query_max_length,
+                         "SELECT EXISTS(SELECT 1 FROM %s WHERE path = '%s')",
+                         table_name.c_str(), asset_path.c_str());
+                auto query_length = strlen(query);
+                TF_DEBUG(USD_URI_RESOLVER).Msg("SQLConnection::resolve_name: query:\n%s\n", query);
+                const auto query_ret = mysql_real_query(connection, query,
+                                                        query_length);
+                // I only have to flush when there is a successful query.
+                if (query_ret != 0) {
+                    SQL_WARN("[SQLResolver] Error executing query: %s\nError code: %i\nError string: %s",
+                            query, mysql_errno(connection), mysql_error(connection));
+                }
+                else {
+                    result = mysql_store_result(connection);
+                }
+
+                if (result != nullptr) {
+                    assert(mysql_num_rows(result) == 1);
+                    auto row = mysql_fetch_row(result);
+                    assert(mysql_num_fields(result) == 1);
+
+
+
+                    if (row[0] != nullptr && strcmp(row[0], "1") == 0) {
+                        TF_DEBUG(USD_URI_RESOLVER).Msg("SQLConnection::resolve_name: found: %s\n", asset_path.c_str());
+                        cache.local_path = generate_name(cache_path,
+                                                         asset_path.substr(
+                                                                 last_dot),
+                                                         tmp_name_buffer);
+                        cache.state = CACHE_NEEDS_FETCHING;
+                        cache.timestamp = 1.0;
+                    }
+                    mysql_free_result(result);
+                }
+
+                TF_DEBUG(USD_URI_RESOLVER).Msg("SQLConnection::resolve_name: local path: %s\n", cache.local_path.c_str());
+                return cache.local_path;
             };
 
-            MYSQL_RES* result = nullptr;
-            constexpr size_t query_max_length = 4096;
-            char query[query_max_length];
-            snprintf(query, query_max_length,
-                     "SELECT EXISTS(SELECT 1 FROM %s WHERE path = '%s')",
-                     table_name.c_str(), asset_path.c_str());
-            auto query_length = strlen(query);
-            TF_DEBUG(USD_URI_RESOLVER).Msg("SQLConnection::resolve_name: query:\n%s\n", query);
-            const auto query_ret = mysql_real_query(connection, query,
-                                                    query_length);
-            // I only have to flush when there is a successful query.
-            if (query_ret != 0) {
-                SQL_WARN("[SQLResolver] Error executing query: %s\nError code: %i\nError string: %s",
-                        query, mysql_errno(connection), mysql_error(connection));
+            if (cached_result != cached_queries.end()) {
+                if (cached_result->second.state != CACHE_MISSING)
+                {
+                    TF_DEBUG(USD_URI_RESOLVER).Msg("SQLConnection::resolve_name: using cached result: '%s'\n", cached_result->second.local_path.c_str());
+                    return cached_result->second.local_path;
+                }
+                return fill_cache_data(cached_result->second);
             }
             else {
-                result = mysql_store_result(connection);
+                Cache cache{
+                    CACHE_MISSING,
+                    ""
+                };
+                std::string result = fill_cache_data(cache);
+                cached_queries.insert(std::make_pair(asset_path, cache));
+                return result;
             }
 
-            if (result != nullptr) {
-                assert(mysql_num_rows(result) == 1);
-                auto row = mysql_fetch_row(result);
-                assert(mysql_num_fields(result) == 1);
-                if (row[0] != nullptr && strcmp(row[0], "1") == 0) {
-                    TF_DEBUG(USD_URI_RESOLVER).Msg("SQLConnection::resolve_name: found: %s\n", asset_path.c_str());
-                    cache.local_path = generate_name(cache_path,
-                                                     asset_path.substr(
-                                                             last_dot),
-                                                     tmp_name_buffer);
-                    cache.state = CACHE_NEEDS_FETCHING;
-                    cache.timestamp = 1.0;
-                }
-                mysql_free_result(result);
-            }
 
-            TF_DEBUG(USD_URI_RESOLVER).Msg("SQLConnection::resolve_name: local path: %s\n", cache.local_path.c_str());
-            cached_queries.insert(std::make_pair(asset_path, cache));
-            return cache.local_path;
         }
 
         bool fetch(const std::string& asset_path) {
@@ -349,7 +392,7 @@ namespace usd_sql {
                 constexpr size_t query_max_length = 4096;
                 char query[query_max_length];
                 snprintf(query, query_max_length,
-                         "SELECT data FROM %s WHERE path = '%s' LIMIT 1",
+                         "SELECT data, timestamp FROM %s WHERE path = '%s' LIMIT 1",
                          table_name.c_str(), asset_path.c_str());
                 unsigned long query_length = strlen(query);
                 TF_DEBUG(USD_URI_RESOLVER).Msg("SQLConnection::fetch: query:\n%s\n", query);
@@ -365,22 +408,36 @@ namespace usd_sql {
                     result = mysql_store_result(connection);
                 }
 
+
+                bool success = false;
                 if (result != nullptr) {
-                    assert(mysql_num_rows(result) == 1);
-                    auto row = mysql_fetch_row(result);
-                    assert(mysql_num_fields(result) == 1);
-                    auto field = mysql_fetch_field(result);
-                    if (row[0] != nullptr && field->max_length > 0) {
-                        TF_DEBUG(USD_URI_RESOLVER).Msg("SQLConnection::fetch: successfully fetched data\n");
-                        std::fstream fs(cached_result->second.local_path,
-                                        std::ios::out | std::ios::binary);
-                        fs.write(row[0], field->max_length);
-                        fs.flush();
-                        cached_result->second.state = CACHE_FETCHED;
-                        cached_result->second.timestamp = get_timestamp_raw(
-                                connection, table_name, asset_path);
+                    if (mysql_num_rows(result) == 1) {
+                        auto row = mysql_fetch_row(result);
+                        assert(mysql_num_fields(result) == 2);
+                        auto field = mysql_fetch_field(result);
+                        if (row[0] != nullptr && field->max_length > 0) {
+                            TF_DEBUG(USD_URI_RESOLVER).Msg("SQLConnection::fetch: successfully fetched data\n");
+                            success = true;
+                            std::fstream fs(cached_result->second.local_path,
+                                            std::ios::out | std::ios::binary);
+                            fs.write(row[0], field->max_length);
+                            fs.flush();
+                            cached_result->second.state = CACHE_FETCHED;
+
+                            field = mysql_fetch_field(result);
+                            double time = convert_mysql_result_to_time(field, row, 1);
+                            if (time == INVALID_TIME) {
+                                TF_DEBUG(USD_URI_RESOLVER).Msg("SQLConnection::fetch: failed parsing timestamp\n");
+                                time = 1.0;
+                            }
+                            cached_result->second.timestamp = time;
+                        }
                     }
                     mysql_free_result(result);
+                }
+
+                if (!success) {
+                    TF_DEBUG(USD_URI_RESOLVER).Msg("SQLConnection::fetch: entry could not be fetched from database\n");
                 }
             }
             else
@@ -399,15 +456,19 @@ namespace usd_sql {
             mutex_scoped_lock sc(connection_mutex);
             const auto cached_result = cached_queries.find(asset_path);
             if (cached_result == cached_queries.end() ||
-                cached_result->second.state == CACHE_MISSING) {
+                    cached_result->second.state == CACHE_MISSING) {
                 SQL_WARN("[SQLResolver] %s is missing when querying timestamps!",
                         asset_path.c_str());
                 return 1.0;
             }
             else {
-                const auto ret = get_timestamp_raw(connection, table_name,
+                auto ret = get_timestamp_raw(connection, table_name,
                                                    asset_path);
-                if (ret > cached_result->second.timestamp) {
+                if (ret == INVALID_TIME) {
+                    cached_result->second.state = CACHE_MISSING;
+                    ret = cached_result->second.timestamp;
+                }
+                else if (ret > cached_result->second.timestamp) {
                     cached_result->second.state = CACHE_NEEDS_FETCHING;
                 }
                 return ret;
