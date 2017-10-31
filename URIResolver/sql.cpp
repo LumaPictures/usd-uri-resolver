@@ -277,7 +277,7 @@ namespace usd_sql {
             for (const auto& cache: cached_queries) {
                 if (cache.second.state == CACHE_FETCHED) {
                     auto local_path = cache.second.local_path.c_str();
-                    TF_DEBUG(USD_URI_RESOLVER).Msg("SQLConnection~SQLConnection: removing local path: %s\n", local_path);
+                    TF_DEBUG(USD_URI_RESOLVER).Msg("SQLConnection::~SQLConnection: removing local path: %s\n", local_path);
                     remove(local_path);
                 }
             }
