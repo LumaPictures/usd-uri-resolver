@@ -23,6 +23,8 @@ public:
 
     virtual std::string Resolve(const std::string& path) override;
 
+    virtual bool IsRelativePath(const std::string& path) override;
+
     virtual std::string ResolveWithAssetInfo(
         const std::string& path,
         ArAssetInfo* assetInfo) override;

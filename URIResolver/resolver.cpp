@@ -45,6 +45,12 @@ std::string URIResolver::Resolve(const std::string& path)
     return URIResolver::ResolveWithAssetInfo(path, nullptr);
 }
 
+bool URIResolver::IsRelativePath(const std::string& path)
+{
+    return !g_sql.matches_schema(path) && ArDefaultResolver::IsRelativePath(path);
+}
+
+
 std::string URIResolver::ResolveWithAssetInfo(
     const std::string& path,
     ArAssetInfo* assetInfo)
