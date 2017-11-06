@@ -8,13 +8,13 @@
 #include <mysql.h>
 #include <errmsg.h>
 
+#include <algorithm>
 #include <fstream>
 #include <iomanip>
-#include <algorithm>
-#include <locale>
-#include <time.h>
 #include <iostream>
 #include <limits>
+#include <locale>
+#include <time.h>
 
 #include <z85/z85.hpp>
 
@@ -541,7 +541,8 @@ namespace usd_sql {
     }
 
     bool SQL::matches_schema(const std::string& path) {
-        return path.find(SQL_PREFIX_SHORT) == 0;
+        constexpr auto schema_length_short = strlen(usd_sql::SQL_PREFIX_SHORT);
+        return path.compare(0, schema_length_short, SQL_PREFIX_SHORT) == 0;
     }
 
     double SQL::get_timestamp(const std::string& path) {
