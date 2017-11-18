@@ -379,6 +379,19 @@ namespace usd_sql {
                 return false;
             }
 
+            if (cached_result->second.state != CACHE_NEEDS_FETCHING) {
+                // ensure cached state is up to date before deciding not to fetch
+                // (there is no guarantee that get_timestamp was called prior to fetch)
+                auto current_timestamp = get_timestamp_raw(connection, table_name, asset_path);
+                if (current_timestamp == INVALID_TIME) {
+                    cached_result->second.state = CACHE_MISSING;
+                }
+                else if (current_timestamp > cached_result->second.timestamp){
+                    TF_DEBUG(USD_URI_RESOLVER).Msg("SQLConnection::fetch: local path data is out of date.\n");
+                    cached_result->second.state = CACHE_NEEDS_FETCHING;
+                }
+            }
+
             if (cached_result->second.state == CACHE_MISSING) {
                 TF_DEBUG(USD_URI_RESOLVER).Msg("SQLConnection::fetch: missing from database, no fetch\n");
                 return false;
