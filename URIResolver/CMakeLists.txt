@@ -10,14 +10,7 @@ find_package(PythonLibs REQUIRED)
 find_package(OpenEXR REQUIRED)
 find_package(TBB REQUIRED)
 
-include_directories(SYSTEM $ENV{USD_ROOT}/include)
-include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
-include_directories(SYSTEM ${PYTHON_INCLUDE_DIRS})
-include_directories(SYSTEM ${MYSQL_CONNECTOR_ROOT}/include)
-include_directories(SYSTEM ${OPENEXR_INCLUDE_DIRS})
-include_directories(SYSTEM ${TBB_INCLUDE_DIRS})
-
-link_directories($ENV{USD_ROOT}/lib)
+link_directories(${USD_LIBRARY_DIR})
 
 find_library(MYSQL_CONNECTOR_LIBRARY
              name libmysqlclient.a
@@ -30,6 +23,12 @@ message(STATUS ${Z85_SRC})
 add_library(${PLUGIN_NAME} SHARED ${Z85_SRC} ${SRC})
 set_target_properties(${PLUGIN_NAME} PROPERTIES PREFIX "")
 target_link_libraries(${PLUGIN_NAME} arch tf plug vt ar ${MYSQL_CONNECTOR_LIBRARY})
+target_include_directories(${PLUGIN_NAME} PRIVATE SYSTEM "${USD_INCLUDE_DIR}")
+target_include_directories(${PLUGIN_NAME} PRIVATE SYSTEM "${Boost_INCLUDE_DIRS}")
+target_include_directories(${PLUGIN_NAME} PRIVATE SYSTEM "${PYTHON_INCLUDE_DIRS}")
+target_include_directories(${PLUGIN_NAME} PRIVATE SYSTEM "${MYSQL_CONNECTOR_ROOT}/include")
+target_include_directories(${PLUGIN_NAME} PRIVATE SYSTEM "${OPENEXR_INCLUDE_DIRS}")
+target_include_directories(${PLUGIN_NAME} PRIVATE SYSTEM "${TBB_INCLUDE_DIRS}")
 
 install(TARGETS ${PLUGIN_NAME}
         DESTINATION .)
