@@ -50,16 +50,13 @@ bool URIResolver::IsRelativePath(const std::string& path)
     return !g_sql.matches_schema(path) && ArDefaultResolver::IsRelativePath(path);
 }
 
-
 std::string URIResolver::ResolveWithAssetInfo(
     const std::string& path,
     ArAssetInfo* assetInfo)
 {
-    if (g_sql.matches_schema(path)) {
-        return g_sql.resolve_name(path);
-    } else {
-        return ArDefaultResolver::ResolveWithAssetInfo(path, assetInfo);
-    }
+    return g_sql.matches_schema(path) ?
+           g_sql.resolve_name(path) :
+           ArDefaultResolver::ResolveWithAssetInfo(path, assetInfo);
 }
 
 void URIResolver::UpdateAssetInfo(
@@ -75,20 +72,14 @@ VtValue URIResolver::GetModificationTimestamp(
     const std::string& path,
     const std::string& resolvedPath)
 {
-    if (g_sql.matches_schema(path)) {
-        return VtValue(g_sql.get_timestamp(path));
-    } else {
-        return ArDefaultResolver::GetModificationTimestamp(path, resolvedPath);
-    }
+    return g_sql.matches_schema(path) ?
+           VtValue(g_sql.get_timestamp(path)) :
+           ArDefaultResolver::GetModificationTimestamp(path, resolvedPath);
 }
 
 bool URIResolver::FetchToLocalResolvedPath(const std::string& path, const std::string& resolvedPath)
 {
-    if (g_sql.matches_schema(path)) {
-        return g_sql.fetch_asset(path);
-    } else {
-        return true;
-    }
+    return !g_sql.matches_schema(path) || g_sql.fetch_asset(path);
 }
 
 PXR_NAMESPACE_CLOSE_SCOPE

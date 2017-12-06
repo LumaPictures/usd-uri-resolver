@@ -8,15 +8,15 @@
 namespace usd_sql {
     struct SQLConnection;
     
-    constexpr auto SQL_PREFIX = "sql://";
-    constexpr auto SQL_PREFIX_SHORT = "sql:";
-    constexpr auto HOST_ENV_VAR = "USD_SQL_DBHOST";
-    constexpr auto PORT_ENV_VAR = "USD_SQL_PORT";
-    constexpr auto DB_ENV_VAR = "USD_SQL_DB";
-    constexpr auto TABLE_ENV_VAR = "USD_SQL_TABLE";
-    constexpr auto USER_ENV_VAR = "USD_SQL_USER";
-    constexpr auto PASSWORD_ENV_VAR = "USD_SQL_PASSWD";
-    constexpr auto CACHE_PATH_ENV_VAR = "USD_SQL_CACHE_PATH";
+    constexpr const char SQL_PREFIX[] = "sql://";
+    constexpr const char SQL_PREFIX_SHORT[] = "sql:";
+    constexpr const char HOST_ENV_VAR[] = "USD_SQL_DBHOST";
+    constexpr const char PORT_ENV_VAR[] = "USD_SQL_PORT";
+    constexpr const char DB_ENV_VAR[] = "USD_SQL_DB";
+    constexpr const char TABLE_ENV_VAR[] = "USD_SQL_TABLE";
+    constexpr const char USER_ENV_VAR[] = "USD_SQL_USER";
+    constexpr const char PASSWORD_ENV_VAR[] = "USD_SQL_PASSWD";
+    constexpr const char CACHE_PATH_ENV_VAR[] = "USD_SQL_CACHE_PATH";
 
     class SQL {
     public:

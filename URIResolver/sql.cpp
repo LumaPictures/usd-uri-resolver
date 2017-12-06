@@ -69,6 +69,12 @@ namespace {
 
     using mutex_scoped_lock = std::lock_guard<std::mutex>;
 
+    // Otherwise clang static analyser will throw errors.
+    template <size_t len> constexpr size_t
+    cexpr_strlen(const char (&)[len]) {
+        return len - 1;
+    }
+
     std::string generate_name(const std::string& base, const std::string& extension, char* buffer) {
         std::tmpnam(buffer);
         std::string ret(buffer);
@@ -114,8 +120,8 @@ namespace {
     }
 
     std::string parse_path(const std::string& path) {
-        constexpr auto schema_length_short = strlen(usd_sql::SQL_PREFIX_SHORT);
-        constexpr auto schema_length = strlen(usd_sql::SQL_PREFIX);
+        constexpr auto schema_length_short = cexpr_strlen(usd_sql::SQL_PREFIX_SHORT);
+        constexpr auto schema_length = cexpr_strlen(usd_sql::SQL_PREFIX);
         if (path.find(usd_sql::SQL_PREFIX) == 0) {
             return path.substr(schema_length);
         } else {
@@ -141,20 +147,15 @@ namespace {
 
         if (!row) {
             SQL_WARN("[SQLResolver] row was null");
-        }
-        else if (!field) {
+        } else if (!field) {
             SQL_WARN("[SQLResolver] could not find the field type to retrieve a timestamp");
-        }
-        else if(field->type != MYSQL_TYPE_TIMESTAMP) {
+        } else if(field->type != MYSQL_TYPE_TIMESTAMP) {
             SQL_WARN("[SQLResolver] Wrong type for time field. Found %i instead of 7.", field->type);
-        }
-        else if (row[field_i] == nullptr) {
+        } else if (row[field_i] == nullptr) {
             SQL_WARN("[SQLResolver] Field %lu was null", field_i);
-        }
-        else if (field->max_length <= 0) {
+        } else if (field->max_length <= 0) {
             SQL_WARN("[SQLResolver] Field %lu had 0 length", field_i);
-        }
-        else {
+        } else {
             ret = convert_char_to_time(row[field_i]);
         }
         return ret;
@@ -315,8 +316,7 @@ namespace usd_sql {
                 if (query_ret != 0) {
                     SQL_WARN("[SQLResolver] Error executing query: %s\nError code: %i\nError string: %s",
                             query, mysql_errno(connection), mysql_error(connection));
-                }
-                else {
+                } else {
                     result = mysql_store_result(connection);
                 }
 
@@ -344,14 +344,12 @@ namespace usd_sql {
             };
 
             if (cached_result != cached_queries.end()) {
-                if (cached_result->second.state != CACHE_MISSING)
-                {
+                if (cached_result->second.state != CACHE_MISSING) {
                     TF_DEBUG(USD_URI_RESOLVER).Msg("SQLConnection::resolve_name: using cached result: '%s'\n", cached_result->second.local_path.c_str());
                     return cached_result->second.local_path;
                 }
                 return fill_cache_data(cached_result->second);
-            }
-            else {
+            } else {
                 Cache cache{
                     CACHE_MISSING,
                     ""
@@ -360,8 +358,6 @@ namespace usd_sql {
                 cached_queries.insert(std::make_pair(asset_path, cache));
                 return result;
             }
-
-
         }
 
         bool fetch(const std::string& asset_path) {
@@ -385,8 +381,7 @@ namespace usd_sql {
                 auto current_timestamp = get_timestamp_raw(connection, table_name, asset_path);
                 if (current_timestamp == INVALID_TIME) {
                     cached_result->second.state = CACHE_MISSING;
-                }
-                else if (current_timestamp > cached_result->second.timestamp){
+                } else if (current_timestamp > cached_result->second.timestamp){
                     TF_DEBUG(USD_URI_RESOLVER).Msg("SQLConnection::fetch: local path data is out of date.\n");
                     cached_result->second.state = CACHE_NEEDS_FETCHING;
                 }
@@ -416,11 +411,9 @@ namespace usd_sql {
                     SQL_WARN("[SQLResolver] Error executing query: %s\nError code: %i\nError string: %s",
                             query, mysql_errno(connection),
                             mysql_error(connection));
-                }
-                else {
+                } else {
                     result = mysql_store_result(connection);
                 }
-
 
                 bool success = false;
                 if (result != nullptr) {
@@ -452,9 +445,7 @@ namespace usd_sql {
                 if (!success) {
                     TF_DEBUG(USD_URI_RESOLVER).Msg("SQLConnection::fetch: entry could not be fetched from database\n");
                 }
-            }
-            else
-            {
+            } else {
                 TF_DEBUG(USD_URI_RESOLVER).Msg("SQLConnection::fetch: Cache didn't need fetching\n");
             }
 
@@ -473,15 +464,13 @@ namespace usd_sql {
                 SQL_WARN("[SQLResolver] %s is missing when querying timestamps!",
                         asset_path.c_str());
                 return 1.0;
-            }
-            else {
+            } else {
                 auto ret = get_timestamp_raw(connection, table_name,
                                                    asset_path);
                 if (ret == INVALID_TIME) {
                     cached_result->second.state = CACHE_MISSING;
                     ret = cached_result->second.timestamp;
-                }
-                else if (ret > cached_result->second.timestamp) {
+                } else if (ret > cached_result->second.timestamp) {
                     cached_result->second.state = CACHE_NEEDS_FETCHING;
                 }
                 return ret;
@@ -533,46 +522,31 @@ namespace usd_sql {
     std::string SQL::resolve_name(const std::string& path) {
         const auto parsed_path = parse_path(path);
         auto conn = get_connection(true);
-        if (conn == nullptr) {
-            return "";
-        }
-        else {
-            return conn->resolve_name(parsed_path);
-        }
+        return conn == nullptr ? "" : conn->resolve_name(parsed_path);
     }
 
     bool SQL::fetch_asset(const std::string& path) {
         const auto parsed_path = parse_path(path);
         auto conn = get_connection(false);
         // fetching asset will be after resolving, thus there should be a server
-        if (conn == nullptr) {
-            return false;
-        }
-        else {
-            return conn->fetch(parsed_path);
-        }
+        return conn != nullptr && conn->fetch(parsed_path);
     }
 
     bool SQL::matches_schema(const std::string& path) {
-        constexpr auto schema_length_short = strlen(usd_sql::SQL_PREFIX_SHORT);
+        constexpr auto schema_length_short = cexpr_strlen(usd_sql::SQL_PREFIX_SHORT);
         return path.compare(0, schema_length_short, SQL_PREFIX_SHORT) == 0;
     }
 
     double SQL::get_timestamp(const std::string& path) {
         const auto parsed_path = parse_path(path);
         auto conn = get_connection(false);
-        if (conn == nullptr) {
-            return 1.0;
-        }
-        else {
-            return conn->get_timestamp(parsed_path);
-        }
+        return conn == nullptr ? 1.0 : conn->get_timestamp(parsed_path);
     }
 
     void SQL::sort_connections() {
         // auto in lambdas require c++14 :(
         std::sort(connections.begin(), connections.end(),
-                  [](const connection_pair& a, const connection_pair& b) {
+                  [](const connection_pair& a, const connection_pair& b) -> bool {
                       return a.first < b.first;
                   });
     }

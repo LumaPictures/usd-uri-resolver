@@ -6,7 +6,7 @@ Currently the URI Resolver provides support for an alternative protocol, when re
 
 #### Request URL
 
-SQL procotol can be accessed, by using sql://<server_name><asset_path> when referencing assets in a USD file.
+SQL protocol can be accessed, by using sql://<server_name><asset_path> when referencing assets in a USD file.
 
 Server name
 - Can be either an IP address or a host name.

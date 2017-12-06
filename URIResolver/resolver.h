@@ -19,27 +19,27 @@ class URIResolver
 {
 public:
     URIResolver();
-    virtual ~URIResolver();
+    ~URIResolver() override;
 
-    virtual std::string Resolve(const std::string& path) override;
+    std::string Resolve(const std::string& path) override;
 
-    virtual bool IsRelativePath(const std::string& path) override;
+    bool IsRelativePath(const std::string& path) override;
 
-    virtual std::string ResolveWithAssetInfo(
+    std::string ResolveWithAssetInfo(
         const std::string& path,
         ArAssetInfo* assetInfo) override;
 
-    virtual void UpdateAssetInfo(
+    void UpdateAssetInfo(
         const std::string& identifier,
         const std::string& filePath,
         const std::string& fileVersion,
         ArAssetInfo* assetInfo) override;
 
-    virtual VtValue GetModificationTimestamp(
+    VtValue GetModificationTimestamp(
         const std::string& path,
         const std::string& resolvedPath) override;
 
-    virtual bool FetchToLocalResolvedPath(
+    bool FetchToLocalResolvedPath(
         const std::string& path,
         const std::string& resolvedPath) override;
 };
