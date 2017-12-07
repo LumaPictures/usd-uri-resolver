@@ -32,7 +32,6 @@ namespace usd_sql {
     private:
         using connection_pair = std::pair<std::string, SQLConnection*>;
         SQLConnection* get_connection(bool create);
-        void sort_connections();
         std::mutex connections_mutex;
         std::vector<connection_pair> connections;
     };

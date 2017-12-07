@@ -510,10 +510,12 @@ namespace usd_sql {
                     connection_pair::second_type, nullptr>(connections,
                                                            server_name);
             if (create && conn == nullptr) { // initialize new connection
-                // TODO
                 conn = new SQLConnection(server_name);
-                connections.push_back(connection_pair{server_name, conn});
-                sort_connections();
+                connections.emplace_back(server_name, conn);
+                std::sort(connections.begin(), connections.end(),
+                          [](const connection_pair& a, const connection_pair& b) -> bool {
+                              return a.first < b.first;
+                          });
             }
         }
         return conn;
@@ -541,13 +543,5 @@ namespace usd_sql {
         const auto parsed_path = parse_path(path);
         auto conn = get_connection(false);
         return conn == nullptr ? 1.0 : conn->get_timestamp(parsed_path);
-    }
-
-    void SQL::sort_connections() {
-        // auto in lambdas require c++14 :(
-        std::sort(connections.begin(), connections.end(),
-                  [](const connection_pair& a, const connection_pair& b) -> bool {
-                      return a.first < b.first;
-                  });
     }
 }
