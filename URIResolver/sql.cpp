@@ -325,8 +325,6 @@ namespace usd_sql {
                     auto row = mysql_fetch_row(result);
                     assert(mysql_num_fields(result) == 1);
 
-
-
                     if (row[0] != nullptr && strcmp(row[0], "1") == 0) {
                         TF_DEBUG(USD_URI_RESOLVER).Msg("SQLConnection::resolve_name: found: %s\n", asset_path.c_str());
                         cache.local_path = generate_name(cache_path,
