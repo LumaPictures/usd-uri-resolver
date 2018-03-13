@@ -35,6 +35,11 @@ public:
         const std::string& fileVersion,
         ArAssetInfo* assetInfo) override;
 
+    // Quick workaround for a bug in USD 0.8.4.
+    std::string AnchorRelativePath(
+        const std::string& anchorPath, 
+        const std::string& path) override;
+
     VtValue GetModificationTimestamp(
         const std::string& path,
         const std::string& resolvedPath) override;
