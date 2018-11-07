@@ -1,2 +1,3 @@
-install(FILES z85/LICENSE
-        DESTINATION licenses)
+install(
+    FILES z85/LICENSE
+    DESTINATION licenses)
