@@ -14,7 +14,6 @@
 #include <thread>
 #include <fstream>
 #include <memory>
-#include <iostream>
 
 #include <unistd.h>
 
