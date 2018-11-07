@@ -11,7 +11,10 @@ find_package(MySQL REQUIRED)
 
 link_directories(${USD_LIBRARY_DIR})
 
-file(GLOB SRC *.cpp)
+set(SRC
+    debugCodes.cpp
+    resolver.cpp
+    sql.cpp)
 
 message(STATUS ${Z85_SRC})
 
