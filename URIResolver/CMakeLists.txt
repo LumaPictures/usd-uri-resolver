@@ -6,7 +6,6 @@ find_package(Boost REQUIRED)
 find_package(PythonLibs REQUIRED)
 find_package(OpenEXR REQUIRED)
 find_package(TBB REQUIRED)
-set(MYSQL_USE_STATIC_LIB ON)
 find_package(MySQL REQUIRED)
 
 link_directories(${USD_LIBRARY_DIR})

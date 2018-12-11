@@ -27,7 +27,7 @@
 # Define search paths based on user input and environment variables
 set(MYSQL_SEARCH_DIR ${MYSQL_ROOT_DIR} $ENV{MYSQL_INSTALL_DIR} $ENV{MYSQL_ROOT})
 
-option(MYSQL_USE_STATIC_LIB "Set to ON to force the use of the static library. Default is OFF")
+option(MYSQL_USE_STATIC_LIB "Set to ON to force the use of the static library. Default is OFF" OFF)
 
 if (WIN32)
     set(MYENV "PROGRAMFILES(X86)")
@@ -72,7 +72,6 @@ else ()
               "/usr/mysql/lib64/mysql" )
     endif()
 endif()
-
 
 if (MYSQL_INCLUDE_DIR AND MYSQL_LIBRARY)
     set(MYSQL_FOUND true)
