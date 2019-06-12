@@ -39,6 +39,9 @@ public:
 
     bool FetchToLocalResolvedPath(
         const std::string& path, const std::string& resolvedPath) override;
+
+    std::shared_ptr<ArAsset> OpenAsset(
+        const std::string& resolvedPath) override;
 };
 
 PXR_NAMESPACE_CLOSE_SCOPE

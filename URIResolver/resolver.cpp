@@ -17,6 +17,7 @@
 
 #include <unistd.h>
 
+#include "debug_codes.h"
 #include "sql.h"
 
 /*
@@ -28,28 +29,32 @@
 PXR_NAMESPACE_OPEN_SCOPE
 
 namespace {
-usd_sql::SQL g_sql;
+SQLResolver SQL;
 }
 
 AR_DEFINE_RESOLVER(URIResolver, ArResolver)
 
 URIResolver::URIResolver() : ArDefaultResolver() {}
 
-URIResolver::~URIResolver() { g_sql.clear(); }
+URIResolver::~URIResolver() { /*g_sql.clear();*/
+}
 
 std::string URIResolver::Resolve(const std::string& path) {
+    TF_DEBUG(USD_URI_RESOLVER).Msg("Resolve('%s'\n)", path.c_str());
     return URIResolver::ResolveWithAssetInfo(path, nullptr);
 }
 
 bool URIResolver::IsRelativePath(const std::string& path) {
-    return !g_sql.matches_schema(path) &&
-           ArDefaultResolver::IsRelativePath(path);
+    TF_DEBUG(USD_URI_RESOLVER).Msg("IsRelativePath('%s')\n", path.c_str());
+    return !SQL.matches_schema(path) && ArDefaultResolver::IsRelativePath(path);
 }
 
 std::string URIResolver::ResolveWithAssetInfo(
     const std::string& path, ArAssetInfo* assetInfo) {
-    return g_sql.matches_schema(path)
-               ? g_sql.resolve_name(path)
+    TF_DEBUG(USD_URI_RESOLVER)
+        .Msg("ResolveWithAssetInfo('%s')\n", path.c_str());
+    return SQL.matches_schema(path)
+               ? (SQL.find_asset(path) ? path : "")
                : ArDefaultResolver::ResolveWithAssetInfo(path, assetInfo);
 }
 
@@ -72,21 +77,45 @@ std::string URIResolver::AnchorRelativePath(
 void URIResolver::UpdateAssetInfo(
     const std::string& identifier, const std::string& filePath,
     const std::string& fileVersion, ArAssetInfo* assetInfo) {
-    ArDefaultResolver::UpdateAssetInfo(
-        identifier, filePath, fileVersion, assetInfo);
+    TF_DEBUG(USD_URI_RESOLVER)
+        .Msg(
+            "UpdateAssetInfo('%s', '%s', '%s', ...)\n", identifier.c_str(),
+            filePath.c_str(), fileVersion.c_str());
+    if (!SQL.matches_schema(identifier)) {
+        ArDefaultResolver::UpdateAssetInfo(
+            identifier, filePath, fileVersion, assetInfo);
+    }
 }
 
 VtValue URIResolver::GetModificationTimestamp(
     const std::string& path, const std::string& resolvedPath) {
-    return g_sql.matches_schema(path)
-               ? VtValue(g_sql.get_timestamp(path))
+    TF_DEBUG(USD_URI_RESOLVER)
+        .Msg(
+            "GetModificationTimestamp('%s', '%s')\n", path.c_str(),
+            resolvedPath.c_str());
+    return SQL.matches_schema(path)
+               ? VtValue(SQL.get_timestamp(path))
                : ArDefaultResolver::GetModificationTimestamp(
                      path, resolvedPath);
 }
 
 bool URIResolver::FetchToLocalResolvedPath(
     const std::string& path, const std::string& resolvedPath) {
-    return !g_sql.matches_schema(path) || g_sql.fetch_asset(path);
+    TF_DEBUG(USD_URI_RESOLVER)
+        .Msg(
+            "FetchToLocalResolvedPath('%s', '%s')\n", path.c_str(),
+            resolvedPath.c_str());
+    // We load the asset in OpenAsset.
+    return !SQL.matches_schema(path) ||
+           ArDefaultResolver::FetchToLocalResolvedPath(path, resolvedPath);
+}
+
+std::shared_ptr<ArAsset> URIResolver::OpenAsset(
+    const std::string& resolvedPath) {
+    TF_DEBUG(USD_URI_RESOLVER).Msg("OpenAsset('%s')\n", resolvedPath.c_str());
+    return SQL.matches_schema(resolvedPath)
+               ? SQL.open_asset(resolvedPath)
+               : ArDefaultResolver::OpenAsset(resolvedPath);
 }
 
 PXR_NAMESPACE_CLOSE_SCOPE

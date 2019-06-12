@@ -1,33 +1,27 @@
 #pragma once
 
-#include <map>
+#include <pxr/pxr.h>
+
+#include <pxr/base/tf/token.h>
+
+#include <pxr/usd/ar/asset.h>
+
 #include <mutex>
-#include <string>
 #include <vector>
 
-namespace usd_sql {
+PXR_NAMESPACE_OPEN_SCOPE
+
 struct SQLConnection;
-
-constexpr const char SQL_PREFIX[] = "sql://";
-constexpr const char SQL_PREFIX_SHORT[] = "sql:";
-constexpr const char HOST_ENV_VAR[] = "USD_SQL_DBHOST";
-constexpr const char PORT_ENV_VAR[] = "USD_SQL_PORT";
-constexpr const char DB_ENV_VAR[] = "USD_SQL_DB";
-constexpr const char TABLE_ENV_VAR[] = "USD_SQL_TABLE";
-constexpr const char USER_ENV_VAR[] = "USD_SQL_USER";
-constexpr const char PASSWORD_ENV_VAR[] = "USD_SQL_PASSWD";
-constexpr const char CACHE_PATH_ENV_VAR[] = "USD_SQL_CACHE_PATH";
-
-class SQL {
+class SQLResolver {
 public:
-    SQL();
-    ~SQL();
+    SQLResolver();
+    ~SQLResolver();
     void clear();
 
-    std::string resolve_name(const std::string& path);
-    bool fetch_asset(const std::string& path);
+    bool find_asset(const std::string& path);
     bool matches_schema(const std::string& path);
     double get_timestamp(const std::string& path);
+    std::shared_ptr<ArAsset> open_asset(const std::string& path);
 
 private:
     using connection_pair = std::pair<std::string, SQLConnection*>;
@@ -35,4 +29,5 @@ private:
     std::mutex connections_mutex;
     std::vector<connection_pair> connections;
 };
-} // namespace usd_sql
+
+PXR_NAMESPACE_CLOSE_SCOPE

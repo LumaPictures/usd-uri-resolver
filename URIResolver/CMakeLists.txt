@@ -11,7 +11,8 @@ find_package(MySQL REQUIRED)
 link_directories(${USD_LIBRARY_DIR})
 
 set(SRC
-    debugCodes.cpp
+    debug_codes.cpp
+    memory_asset.cpp
     resolver.cpp
     sql.cpp)
 
