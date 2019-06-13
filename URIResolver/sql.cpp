@@ -38,6 +38,11 @@ constexpr auto PASSWORD_ENV_VAR = "USD_SQL_PASSWD";
 
 constexpr double INVALID_TIME = std::numeric_limits<double>::lowest();
 
+struct MySQLResultDeleter {
+    void operator()(MYSQL_RES* r) const { mysql_free_result(r); }
+};
+using MySQLResult = std::unique_ptr<MYSQL_RES, MySQLResultDeleter>;
+
 using mutex_scoped_lock = std::lock_guard<std::mutex>;
 
 // Included in other source file. For improving readibility it's defined here.
@@ -133,6 +138,12 @@ std::string parse_path(const std::string& path) {
     }
 }
 
+std::string clean_path(const std::string& path) {
+  return path.find(SQL_PREFIX) == 0
+         ? std::string(path).replace(0, cstrlen(SQL_PREFIX), SQL_PREFIX_SHORT)
+         : path;
+}
+
 double convert_char_to_time(const char* raw_time) {
     // GCC 4.8 doesn't have the get_time function of C++11
     std::tm parsed_time = {};
@@ -172,7 +183,6 @@ double convert_mysql_result_to_time(
 double get_timestamp_raw(
     MYSQL* connection, const std::string& table_name,
     const TfToken& asset_path) {
-    MYSQL_RES* result = nullptr;
     constexpr size_t query_max_length = 4096;
     char query[query_max_length];
     snprintf(
@@ -184,34 +194,30 @@ double get_timestamp_raw(
         .Msg("get_timestamp_raw: query:\n%s\n", query);
     const auto query_ret = mysql_real_query(connection, query, query_length);
     // I only have to flush when there is a successful query.
+    MySQLResult result;
     if (query_ret != 0) {
         SQL_WARN(
             "[SQLResolver] Error executing query: %s\nError code: %i\nError "
             "string: %s",
             query, mysql_errno(connection), mysql_error(connection));
     } else {
-        result = mysql_store_result(connection);
+        result.reset(mysql_store_result(connection));
     }
+    if (result == nullptr) { return INVALID_TIME; }
+    if (mysql_num_rows(result.get()) != 1) { return INVALID_TIME; }
 
-    auto ret = INVALID_TIME;
-
-    if (result != nullptr) {
-        if (mysql_num_rows(result) == 1) {
-            auto row = mysql_fetch_row(result);
-            assert(mysql_num_fields(result) == 1);
-            auto field = mysql_fetch_field(result);
-            ret = convert_mysql_result_to_time(field, row, 0);
-            if (ret == INVALID_TIME) {
-                TF_DEBUG(USD_URI_SQL_RESOLVER)
-                    .Msg("get_timestamp_raw: failed to convert timestamp\n");
-            } else {
-                TF_DEBUG(USD_URI_SQL_RESOLVER)
-                    .Msg("get_timestamp_raw: got: %f\n", ret);
-            }
-        }
-        mysql_free_result(result);
+    auto row = mysql_fetch_row(result.get());
+    assert(mysql_num_fields(result) == 1);
+    auto field = mysql_fetch_field(result.get());
+    const auto time = convert_mysql_result_to_time(field, row, 0);
+    if (time == INVALID_TIME) {
+        TF_DEBUG(USD_URI_SQL_RESOLVER)
+            .Msg("get_timestamp_raw: failed to convert timestamp\n");
+    } else {
+        TF_DEBUG(USD_URI_SQL_RESOLVER)
+            .Msg("get_timestamp_raw: got: %f\n", time);
     }
-    return ret;
+    return time;
 }
 
 enum CacheState { CACHE_MISSING, CACHE_NEEDS_FETCHING, CACHE_FETCHED };
@@ -222,15 +228,6 @@ struct Cache {
     double timestamp;
     std::shared_ptr<ArAsset> asset;
 };
-
-struct MySQLResultDeleter {
-    void operator()(MYSQL_RES* r) const {
-        // TODO: Do we need this check?
-        if (r != nullptr) { mysql_free_result(r); }
-    }
-};
-
-using MySQLResult = std::unique_ptr<MYSQL_RES, MySQLResultDeleter>;
 
 } // namespace
 
@@ -283,9 +280,13 @@ SQLConnection* SQLResolver::get_connection(bool create) {
     return conn;
 }
 
-bool SQLResolver::find_asset(const std::string& path) {
+std::string SQLResolver::find_asset(const std::string& path) {
     auto conn = get_connection(true);
-    return conn == nullptr ? false : conn->find_asset(path);
+    if (conn == nullptr) {
+        return {};
+    }
+    const auto cleaned_path = clean_path(path);
+    return conn->find_asset(cleaned_path) ? cleaned_path : "";
 }
 
 bool SQLResolver::matches_schema(const std::string& path) {
@@ -295,12 +296,12 @@ bool SQLResolver::matches_schema(const std::string& path) {
 
 double SQLResolver::get_timestamp(const std::string& path) {
     auto conn = get_connection(false);
-    return conn == nullptr ? 1.0 : conn->get_timestamp(path);
+    return conn == nullptr ? 1.0 : conn->get_timestamp(clean_path(path));
 }
 
 std::shared_ptr<ArAsset> SQLResolver::open_asset(const std::string& path) {
     auto conn = get_connection(false);
-    return conn == nullptr ? nullptr : conn->open_asset(path);
+    return conn == nullptr ? nullptr : conn->open_asset(clean_path(path));
 }
 
 SQLConnection::SQLConnection(const std::string& server_name)
@@ -453,17 +454,29 @@ double SQLConnection::get_timestamp(const std::string& asset_path) {
             "[SQLResolver] %s is missing when querying timestamps!",
             asset_path.c_str());
         return 1.0;
-    } else {
-        const auto stamp = get_timestamp_raw(
-            connection, table_name, cached_result->second.local_path);
-        if (stamp == INVALID_TIME) {
-            cached_result->second.state = CACHE_MISSING;
-            return cached_result->second.timestamp;
-        } else if (stamp > cached_result->second.timestamp) {
-            cached_result->second.state = CACHE_NEEDS_FETCHING;
-        }
-        return stamp;
     }
+    const auto stamp = get_timestamp_raw(
+        connection, table_name, cached_result->second.local_path);
+    if (stamp == INVALID_TIME) {
+        cached_result->second.state = CACHE_MISSING;
+        SQL_WARN(
+            "[SQLResolver] Failed to parse timestamp for %s, returning the"
+            "existing value.",
+            asset_path.c_str());
+        return cached_result->second.timestamp;
+    } else if (stamp > cached_result->second.timestamp) {
+        TF_DEBUG(USD_URI_SQL_RESOLVER)
+            .Msg(
+                "SQLConnection::get_timestamp: %s timestamp has changed from "
+                "%f to %f\n",
+                asset_path.c_str(), cached_result->second.timestamp, stamp);
+        cached_result->second.state = CACHE_NEEDS_FETCHING;
+    }
+    TF_DEBUG(USD_URI_SQL_RESOLVER)
+        .Msg(
+            "SQLConnection::get_timestamp: timestamp of %f for %s", stamp,
+            asset_path.c_str());
+    return stamp;
 }
 
 std::shared_ptr<ArAsset> SQLConnection::open_asset(
@@ -479,7 +492,7 @@ std::shared_ptr<ArAsset> SQLConnection::open_asset(
     }
 
     mutex_scoped_lock sc(connection_mutex);
-    auto cached_result = cached_queries.find(TfToken(asset_path));
+    const auto cached_result = cached_queries.find(TfToken(asset_path));
     if (cached_result == cached_queries.end()) {
         SQL_WARN(
             "[SQLResolver] %s was not resolved before fetching!",
@@ -501,10 +514,8 @@ std::shared_ptr<ArAsset> SQLConnection::open_asset(
         auto current_timestamp = get_timestamp_raw(
             connection, table_name, cached_result->second.local_path);
         // So we can fail faster next time.
-        if (current_timestamp == INVALID_TIME) {
-            cached_result->second.state = CACHE_MISSING;
-            return nullptr;
-        } else if (current_timestamp <= cached_result->second.timestamp) {
+        if (current_timestamp == INVALID_TIME ||
+            current_timestamp <= cached_result->second.timestamp) {
             return cached_result->second.asset;
         } else {
             TF_DEBUG(USD_URI_SQL_RESOLVER)
@@ -528,7 +539,7 @@ std::shared_ptr<ArAsset> SQLConnection::open_asset(
         table_name.c_str(), cached_result->second.local_path.GetText());
     unsigned long query_length = strlen(query);
     TF_DEBUG(USD_URI_SQL_RESOLVER)
-        .Msg("SQLConnection::fetch: query:\n%s\n", query);
+        .Msg("SQLConnection::open_asset: query:\n%s\n", query);
     const auto query_ret = mysql_real_query(connection, query, query_length);
     // I only have to flush when there is a successful query.
     if (query_ret != 0) {
@@ -551,22 +562,21 @@ std::shared_ptr<ArAsset> SQLConnection::open_asset(
 
     TF_DEBUG(USD_URI_SQL_RESOLVER)
         .Msg(
-            "SQLConnection::fetch: successfully fetched "
+            "SQLConnection::open_asset: successfully fetched "
             "data\n");
     cached_result->second.asset.reset(
         new MemoryAsset(row[0], field->max_length));
     cached_result->second.state = CACHE_FETCHED;
 
     field = mysql_fetch_field(result.get());
-    double time = convert_mysql_result_to_time(field, row, 1);
-    if (time == INVALID_TIME) {
+    cached_result->second.timestamp =
+        convert_mysql_result_to_time(field, row, 1);
+    if (cached_result->second.timestamp == INVALID_TIME) {
         TF_DEBUG(USD_URI_SQL_RESOLVER)
             .Msg(
                 "SQLConnection::open_asset: failed parsing "
                 "timestamp\n");
-        return nullptr;
     }
-    cached_result->second.timestamp = time;
     return cached_result->second.asset;
 }
 

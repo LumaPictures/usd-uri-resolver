@@ -1,5 +1,7 @@
 #include "memory_asset.h"
 
+#include <pxr/base/tf/diagnostic.h>
+
 #include <cstring>
 
 PXR_NAMESPACE_OPEN_SCOPE
@@ -23,6 +25,18 @@ size_t MemoryAsset::Read(void* buffer, size_t count, size_t offset) {
     return copied;
 }
 
-std::pair<FILE*, size_t> MemoryAsset::GetFileUnsafe() { return {0, 0}; }
+std::pair<FILE*, size_t> MemoryAsset::GetFileUnsafe() {
+    if (temp == nullptr) {
+        std::lock_guard<std::mutex> lock(temp_mutex);
+        if (temp == nullptr) {
+            temp = tmpfile();
+            if (!TF_VERIFY(temp != nullptr)) {
+                return {nullptr, 0};
+            }
+            fwrite(data.get(), data_size, 1, temp);
+        }
+    }
+    return {temp, 0};
+}
 
 PXR_NAMESPACE_CLOSE_SCOPE

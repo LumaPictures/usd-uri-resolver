@@ -54,7 +54,7 @@ std::string URIResolver::ResolveWithAssetInfo(
     TF_DEBUG(USD_URI_RESOLVER)
         .Msg("ResolveWithAssetInfo('%s')\n", path.c_str());
     return SQL.matches_schema(path)
-               ? (SQL.find_asset(path) ? path : "")
+               ? SQL.find_asset(path)
                : ArDefaultResolver::ResolveWithAssetInfo(path, assetInfo);
 }
 

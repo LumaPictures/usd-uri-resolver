@@ -4,6 +4,8 @@
 
 #include <pxr/usd/ar/asset.h>
 
+#include <mutex>
+
 PXR_NAMESPACE_OPEN_SCOPE
 
 class MemoryAsset final : public ArAsset {
@@ -27,6 +29,9 @@ private:
     // need to outlive the asset.
     std::shared_ptr<char> data;
     size_t data_size;
+    std::mutex temp_mutex;
+    // This is going to be from tmpfile(), so no need to manually free it.
+    FILE* temp = nullptr;
 };
 
 PXR_NAMESPACE_CLOSE_SCOPE

@@ -18,7 +18,7 @@ public:
     ~SQLResolver();
     void clear();
 
-    bool find_asset(const std::string& path);
+    std::string find_asset(const std::string& path);
     bool matches_schema(const std::string& path);
     double get_timestamp(const std::string& path);
     std::shared_ptr<ArAsset> open_asset(const std::string& path);
