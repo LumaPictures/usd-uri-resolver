@@ -454,11 +454,11 @@ double SQLConnection::get_timestamp(const std::string& asset_path) {
             asset_path.c_str());
         return 1.0;
     } else {
-        auto stamp = get_timestamp_raw(
+        const auto stamp = get_timestamp_raw(
             connection, table_name, cached_result->second.local_path);
         if (stamp == INVALID_TIME) {
             cached_result->second.state = CACHE_MISSING;
-            stamp = cached_result->second.timestamp;
+            return cached_result->second.timestamp;
         } else if (stamp > cached_result->second.timestamp) {
             cached_result->second.state = CACHE_NEEDS_FETCHING;
         }
@@ -564,7 +564,7 @@ std::shared_ptr<ArAsset> SQLConnection::open_asset(
             .Msg(
                 "SQLConnection::open_asset: failed parsing "
                 "timestamp\n");
-        time = 1.0;
+        return nullptr;
     }
     cached_result->second.timestamp = time;
     return cached_result->second.asset;
