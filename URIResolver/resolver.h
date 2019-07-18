@@ -26,10 +26,6 @@ public:
     std::string ResolveWithAssetInfo(
         const std::string& path, ArAssetInfo* assetInfo) override;
 
-    void UpdateAssetInfo(
-        const std::string& identifier, const std::string& filePath,
-        const std::string& fileVersion, ArAssetInfo* assetInfo) override;
-
     // Quick workaround for a bug in USD 0.8.4.
     std::string AnchorRelativePath(
         const std::string& anchorPath, const std::string& path) override;

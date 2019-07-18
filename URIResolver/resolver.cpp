@@ -74,19 +74,6 @@ std::string URIResolver::AnchorRelativePath(
     return TfNormPath(anchoredPath);
 }
 
-void URIResolver::UpdateAssetInfo(
-    const std::string& identifier, const std::string& filePath,
-    const std::string& fileVersion, ArAssetInfo* assetInfo) {
-    TF_DEBUG(USD_URI_RESOLVER)
-        .Msg(
-            "UpdateAssetInfo('%s', '%s', '%s', ...)\n", identifier.c_str(),
-            filePath.c_str(), fileVersion.c_str());
-    if (!SQL.matches_schema(identifier)) {
-        ArDefaultResolver::UpdateAssetInfo(
-            identifier, filePath, fileVersion, assetInfo);
-    }
-}
-
 VtValue URIResolver::GetModificationTimestamp(
     const std::string& path, const std::string& resolvedPath) {
     TF_DEBUG(USD_URI_RESOLVER)
