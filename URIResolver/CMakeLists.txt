@@ -31,12 +31,16 @@ target_include_directories(${PLUGIN_NAME} SYSTEM PRIVATE "${OPENEXR_INCLUDE_DIRS
 target_include_directories(${PLUGIN_NAME} SYSTEM PRIVATE "${TBB_INCLUDE_DIRS}")
 target_include_directories(${PLUGIN_NAME} SYSTEM PRIVATE "${EXTERNAL_INCLUDE_DIR}")
 
+configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/plugInfo.json.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/plugInfo.json")
+
 install(
     TARGETS ${PLUGIN_NAME}
     DESTINATION .)
 
 install(
-    FILES plugInfo.json
+    FILES "${CMAKE_CURRENT_BINARY_DIR}/plugInfo.json"
     DESTINATION ${PLUGIN_NAME}/resources/)
 
 install(

@@ -10,7 +10,7 @@
                     }
                 }
             },
-            "LibraryPath": "../URIResolver.so",
+            "LibraryPath": "../URIResolver.${DSO_EXT}",
             "Name": "URIResolver",
             "ResourcePath": "resources",
             "Root": "..",

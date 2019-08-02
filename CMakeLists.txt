@@ -8,6 +8,18 @@ find_package(USD REQUIRED)
 
 set(CMAKE_CXX_STANDARD 11)
 
+if (UNIX AND NOT APPLE)
+    set(LINUX TRUE)
+endif()
+
+if (LINUX)
+    set(DSO_EXT "so")
+elseif (APPLE)
+    set(DSO_EXT "dylib")
+else ()
+    set(DSO_EXT "dll")
+endif ()
+
 # TODO: Windows support.
 add_compile_options(-Wall -DBUILD_OPTLEVEL_OPT -DBUILD_COMPONENT_SRC_PREFIX="")
 option(ENABLE_RESOLVER_BUILD "Enabling building the uri resolver." On)
