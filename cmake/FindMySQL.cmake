@@ -46,7 +46,7 @@ if (WIN32)
             "$ENV{SYSTEMDRIVE}/MySQL/*/lib" )
 else ()
     find_path(MYSQL_INCLUDE_DIR
-        NAMES "mysql.h"
+        NAMES "my_global.h"
         HINTS ${MYSQL_INCLUDE_DIR} ${MYSQL_SEARCH_DIR}/include
         PATHS
             "/usr/include/mysql"

@@ -8,7 +8,9 @@ find_path(USD_INCLUDE_DIR pxr/pxr.h
           PATHS ${USD_ROOT}/include
           DOC "USD Include directory")
 
+# TODO: support monolithic builds!
 find_path(USD_LIBRARY_DIR libusd.so
+          NAMES libusd.dylib
           PATHS ${USD_ROOT}/lib
           DOC "USD Libraries directory")
 
