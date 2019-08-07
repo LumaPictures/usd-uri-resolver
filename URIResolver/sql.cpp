@@ -2,18 +2,13 @@
 
 #include <pxr/base/tf/diagnosticLite.h>
 
-#include <errmsg.h>
 #include <my_global.h>
 #include <my_sys.h>
 #include <mysql.h>
 
 #include <time.h>
 #include <algorithm>
-#include <fstream>
-#include <iomanip>
-#include <iostream>
 #include <limits>
-#include <locale>
 #include <unordered_map>
 
 #include <z85/z85.hpp>
@@ -153,7 +148,19 @@ double convert_char_to_time(const char* raw_time) {
     // for the asctime function to match the actual time
     // even without that, the parsed times will be consistent, so
     // probably it won't cause any issues
-    return mktime(&parsed_time);
+
+    // The database might use higher resolution, but the posix function is
+    // unable to parse that so we manually have to do it.
+    double ret = mktime(&parsed_time);
+    const auto* dot_pos = strchr(raw_time, '.');
+    if (dot_pos != nullptr && *(dot_pos + 1) != '\0') {
+        char tmp[16];
+        tmp[0] = '0';
+        tmp[1] = '.';
+        strncpy(tmp + 2, dot_pos + 1, 14);
+        ret += atof(tmp);
+    }
+    return ret;
 }
 
 double convert_mysql_result_to_time(

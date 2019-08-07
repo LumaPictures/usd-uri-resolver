@@ -1,4 +1,4 @@
-project(luma_usd)
+project(usd-uri-resolver)
 
 cmake_minimum_required(VERSION 3.1)
 
@@ -23,6 +23,7 @@ endif ()
 # TODO: Windows support.
 add_compile_options(-Wall -DBUILD_OPTLEVEL_OPT -DBUILD_COMPONENT_SRC_PREFIX="")
 option(ENABLE_RESOLVER_BUILD "Enabling building the uri resolver." On)
+option(ENABLE_STRESSTEST_BUILD "Enabling building stress test for the resolver." Off)
 
 set(EXTERNAL_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external)
 
@@ -32,6 +33,10 @@ set(Z85_SRC
 
 if (ENABLE_RESOLVER_BUILD)
     add_subdirectory(URIResolver)
+endif ()
+
+if (ENABLE_STRESSTEST_BUILD)
+    add_subdirectory(stressTest)
 endif ()
 
 add_subdirectory(external)

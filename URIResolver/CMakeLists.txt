@@ -16,8 +16,6 @@ set(SRC
     resolver.cpp
     sql.cpp)
 
-message(STATUS ${Z85_SRC})
-
 add_library(${PLUGIN_NAME} SHARED ${Z85_SRC} ${SRC})
 set_target_properties(${PLUGIN_NAME} PROPERTIES PREFIX "")
 set_target_properties(${PLUGIN_NAME} PROPERTIES INSTALL_RPATH_USE_LINK_PATH ON)
