@@ -2,15 +2,15 @@ project(usd-uri-resolver)
 
 cmake_minimum_required(VERSION 3.1)
 
+if (UNIX AND NOT APPLE)
+    set(LINUX TRUE)
+endif()
+
 list(INSERT CMAKE_MODULE_PATH 0 "${CMAKE_SOURCE_DIR}/cmake")
 
 find_package(USD REQUIRED)
 
 set(CMAKE_CXX_STANDARD 11)
-
-if (UNIX AND NOT APPLE)
-    set(LINUX TRUE)
-endif()
 
 if (LINUX)
     set(DSO_EXT "so")
