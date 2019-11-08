@@ -6,6 +6,7 @@
 
 #include <pxr/usd/ar/asset.h>
 
+#include <iostream>
 #include <mutex>
 #include <vector>
 
@@ -19,7 +20,10 @@ public:
     void clear() {}
 
     std::string find_asset(const std::string& path) {return path;}
-    bool matches_schema(const std::string& path) {return false;}
+    bool matches_schema(const std::string& path) {
+        std::cout << "USDURIResolver is active..." << std::endl;
+        return false;
+    }
     double get_timestamp(const std::string& path) {return 0.0;}
     std::shared_ptr<ArAsset> open_asset(const std::string& path) {return nullptr;}
 

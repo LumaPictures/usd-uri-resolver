@@ -21,7 +21,11 @@ else ()
 endif ()
 
 # TODO: Windows support.
-add_compile_options(-Wall -DBUILD_OPTLEVEL_OPT -DBUILD_COMPONENT_SRC_PREFIX="")
+add_compile_options(-DBUILD_OPTLEVEL_OPT -DBUILD_COMPONENT_SRC_PREFIX="")
+if (NOT WIN32)
+    add_compile_options(-Wall)
+endif ()
+    
 option(ENABLE_RESOLVER_BUILD "Enabling building the uri resolver." On)
 option(ENABLE_STRESSTEST_BUILD "Enabling building stress test for the resolver." Off)
 
