@@ -1,17 +1,28 @@
 # Simple module to find USD.
 
-if (LINUX)
-    set(USD_LIB_EXTENSION ".so"
+if (WIN32)
+    # On Windows we need to find ".lib"... which is CMAKE_STATIC_LIB_SUFFIX on
+    # WIN32 (CMAKE_SHARED_LIB_SUFFIX is ".dll")
+    set(USD_LIB_EXTENSION ${CMAKE_STATIC_LIB_SUFFIX}
         CACHE STRING "Extension of USD libraries")
-elseif (WIN32)
-    set(USD_LIB_EXTENSION ".lib"
-        CACHE STRING "Extension of USD libraries")
-else () # MacOS
-    set(USD_LIB_EXTENSION ".dylib"
+else ()
+    # Defaults to ".so" on Linux, ".dylib" on MacOS
+    set(USD_LIB_EXTENSION ${CMAKE_SHARED_LIB_SUFFIX}
         CACHE STRING "Extension of USD libraries")
 endif ()
 
 if (WIN32)
+    # Note: as of USD-0.19.11, the behavior on windows was that the .lib files
+    # ALWAYS had no prefix, regardless of PXR_LIB_PREFIX.  However, the
+    # PXR_LIB_PREFIX - which defaults to "lib", even on windows - IS used for
+    # the .dll names.
+    # So, if PXR_LIB_PREFIX is left at it's default value of "lib", you
+    # have output libs like:
+    #    usd.lib
+    #    libusd.dll
+    # The upshot is that, regardless of what PXR_LIB_PREFIX was set to when USD
+    # was built, USD_LIB_PREFIX should nearly always be left at it's default ""
+    # on windows
     set(USD_LIB_PREFIX ""
         CACHE STRING "Prefix of USD libraries")
 else ()
@@ -25,8 +36,12 @@ find_path(USD_INCLUDE_DIR pxr/pxr.h
     DOC "USD Include directory")
 
 # We need to find either usd or usd_ms, with taking the prefix into account.
+
 find_path(USD_LIBRARY_DIR
-    NAMES ${USD_LIB_PREFIX}usd${USD_LIB_EXTENSION} ${USD_LIB_PREFIX}usd_ms${USD_LIB_EXTENSION}
+    NAMES
+        ${USD_LIB_PREFIX}usd${USD_LIB_EXTENSION}
+        # usd_msd is the monolithic-shared version of the library
+        ${USD_LIB_PREFIX}usd_ms${USD_LIB_EXTENSION}
     PATHS ${USD_ROOT}/lib
           $ENV{USD_ROOT}/lib
     DOC "USD Libraries directory")
