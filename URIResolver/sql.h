@@ -14,20 +14,20 @@ PXR_NAMESPACE_OPEN_SCOPE
 struct SQLConnection;
 class SQLResolver {
 public:
-    SQLResolver();
-    ~SQLResolver();
-    void clear();
+    SQLResolver() {}
+    ~SQLResolver() {}
+    void clear() {}
 
-    std::string find_asset(const std::string& path);
-    bool matches_schema(const std::string& path);
-    double get_timestamp(const std::string& path);
-    std::shared_ptr<ArAsset> open_asset(const std::string& path);
+    std::string find_asset(const std::string& path) {return path;}
+    bool matches_schema(const std::string& path) {return false;}
+    double get_timestamp(const std::string& path) {return 0.0;}
+    std::shared_ptr<ArAsset> open_asset(const std::string& path) {return nullptr;}
 
 private:
-    using connection_pair = std::pair<std::string, SQLConnection*>;
-    SQLConnection* get_connection(bool create);
-    std::mutex connections_mutex;
-    std::vector<connection_pair> connections;
+    // using connection_pair = std::pair<std::string, SQLConnection*>;
+    // SQLConnection* get_connection(bool create);
+    // std::mutex connections_mutex;
+    // std::vector<connection_pair> connections;
 };
 
 PXR_NAMESPACE_CLOSE_SCOPE
