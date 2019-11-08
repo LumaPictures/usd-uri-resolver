@@ -15,8 +15,6 @@
 #include <mutex>
 #include <thread>
 
-#include <unistd.h>
-
 #include "debug_codes.h"
 #include "sql.h"
 
