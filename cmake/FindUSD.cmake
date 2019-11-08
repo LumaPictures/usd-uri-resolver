@@ -1,13 +1,13 @@
 # Simple module to find USD.
 
 if (WIN32)
-    # On Windows we need to find ".lib"... which is CMAKE_STATIC_LIB_SUFFIX on
-    # WIN32 (CMAKE_SHARED_LIB_SUFFIX is ".dll")
-    set(USD_LIB_EXTENSION ${CMAKE_STATIC_LIB_SUFFIX}
+    # On Windows we need to find ".lib"... which is CMAKE_STATIC_LIBRARY_SUFFIX
+    # on WIN32 (CMAKE_SHARED_LIBRARY_SUFFIX is ".dll")
+    set(USD_LIB_EXTENSION ${CMAKE_STATIC_LIBRARY_SUFFIX}
         CACHE STRING "Extension of USD libraries")
 else ()
     # Defaults to ".so" on Linux, ".dylib" on MacOS
-    set(USD_LIB_EXTENSION ${CMAKE_SHARED_LIB_SUFFIX}
+    set(USD_LIB_EXTENSION ${CMAKE_SHARED_LIBRARY_SUFFIX}
         CACHE STRING "Extension of USD libraries")
 endif ()
 
