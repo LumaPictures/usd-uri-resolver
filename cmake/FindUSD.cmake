@@ -33,7 +33,11 @@ find_path(USD_LIBRARY_DIR
 
 find_file(USD_GENSCHEMA
           names usdGenSchema
-          PATHS ${USD_ROOT}/bin
+          HINTS
+              ${USD_ROOT}
+              $ENV{USD_ROOT}
+          PATH_SUFFIXES
+              bin
           DOC "USD Gen schema application")
 
 if(USD_INCLUDE_DIR AND EXISTS "${USD_INCLUDE_DIR}/pxr/pxr.h")
