@@ -11,24 +11,22 @@ else ()
         CACHE STRING "Extension of USD libraries")
 endif ()
 
-if (WIN32)
-    # Note: as of USD-0.19.11, the behavior on windows was that the .lib files
-    # ALWAYS had no prefix, regardless of PXR_LIB_PREFIX.  However, the
-    # PXR_LIB_PREFIX - which defaults to "lib", even on windows - IS used for
-    # the .dll names.
-    # So, if PXR_LIB_PREFIX is left at it's default value of "lib", you
-    # have output libs like:
-    #    usd.lib
-    #    libusd.dll
-    # The upshot is that, regardless of what PXR_LIB_PREFIX was set to when USD
-    # was built, USD_LIB_PREFIX should nearly always be left at it's default ""
-    # on windows
-    set(USD_LIB_PREFIX ""
-        CACHE STRING "Prefix of USD libraries")
-else ()
-    set(USD_LIB_PREFIX lib
-        CACHE STRING "Prefix of USD libraries")
-endif ()
+# Note: for USD <= 0.19.11, there was a bug where, regardless of what
+# PXR_LIB_PREFIX was set to, the behavior on windows was that the .lib files
+# ALWAYS had no prefix.  However, the PXR_LIB_PREFIX - which defaulted to "lib",
+# even on windows - WAS used for the .dll names.
+#
+# So, if PXR_LIB_PREFIX was left at it's default value of "lib", you
+# had output libs like:
+#    usd.lib
+#    libusd.dll
+#
+# The upshot is that, for windows and USD <= 0.19.11, you probably want to
+# leave USD_LIB_PREFIX at it's default (empty string on windows), even if you
+# set a PXR_LIB_PREFIX when building USD core.
+
+set(USD_LIB_PREFIX ${CMAKE_SHARED_LIBRARY_PREFIX}
+    CACHE STRING "Prefix of USD libraries")
 
 find_path(USD_INCLUDE_DIR pxr/pxr.h
     PATHS ${USD_ROOT}/include
