@@ -1,6 +1,5 @@
 find_package(Boost REQUIRED COMPONENTS python)
 find_package(PythonLibs 2.7 REQUIRED)
-find_package(OpenEXR REQUIRED)
 find_package(TBB REQUIRED)
 find_package(MySQL REQUIRED)
 
@@ -20,7 +19,6 @@ target_include_directories(stress SYSTEM PRIVATE "${USD_INCLUDE_DIR}")
 target_include_directories(stress SYSTEM PRIVATE "${Boost_INCLUDE_DIRS}")
 target_include_directories(stress SYSTEM PRIVATE "${PYTHON_INCLUDE_DIRS}")
 target_include_directories(stress SYSTEM PRIVATE "${MYSQL_INCLUDE_DIR}")
-target_include_directories(stress SYSTEM PRIVATE "${OPENEXR_INCLUDE_DIRS}")
 target_include_directories(stress SYSTEM PRIVATE "${TBB_INCLUDE_DIRS}")
 target_include_directories(stress SYSTEM PRIVATE "${EXTERNAL_INCLUDE_DIR}")
 
