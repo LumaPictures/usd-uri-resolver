@@ -10,8 +10,6 @@ list(INSERT CMAKE_MODULE_PATH 0 "${CMAKE_SOURCE_DIR}/cmake")
 
 find_package(USD REQUIRED)
 
-set(CMAKE_CXX_STANDARD 11)
-
 if (LINUX)
     set(DSO_EXT "so")
 elseif (APPLE)
