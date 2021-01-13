@@ -2,7 +2,10 @@ add_subdirectory(obfuscate_pass)
 
 set(PLUGIN_NAME URIResolver)
 
-find_package(Boost REQUIRED COMPONENTS python)
+find_package(Boost COMPONENTS python27)
+if (NOT Boost_FOUND)
+    find_package(Boost COMPONENTS python REQUIRED)
+endif()
 find_package(PythonLibs 2.7 REQUIRED)
 find_package(TBB REQUIRED)
 find_package(MySQL REQUIRED)
