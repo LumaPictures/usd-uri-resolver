@@ -14,18 +14,18 @@ MemoryAsset::MemoryAsset(const char* raw, size_t size) : data_size(size) {
     }
 }
 
-size_t MemoryAsset::GetSize() { return data_size; }
+size_t MemoryAsset::_GetSize() const { return data_size; }
 
-std::shared_ptr<const char> MemoryAsset::GetBuffer() { return data; }
+std::shared_ptr<const char> MemoryAsset::_GetBuffer() const { return data; }
 
-size_t MemoryAsset::Read(void* buffer, size_t count, size_t offset) {
+size_t MemoryAsset::_Read(void* buffer, size_t count, size_t offset) const {
     if (data == nullptr || offset >= data_size) { return 0; }
     const auto copied = std::min(data_size - offset, count);
     memcpy(buffer, data.get() + offset, copied);
     return copied;
 }
 
-std::pair<FILE*, size_t> MemoryAsset::GetFileUnsafe() {
+std::pair<FILE*, size_t> MemoryAsset::_GetFileUnsafe() const {
     if (temp == nullptr) {
         std::lock_guard<std::mutex> lock(temp_mutex);
         if (temp == nullptr) {

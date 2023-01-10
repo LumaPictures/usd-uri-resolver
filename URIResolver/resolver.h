@@ -19,6 +19,22 @@ public:
     URIResolver();
     ~URIResolver() override;
 
+#if AR_VERSION == 2
+    ArResolvedPath _Resolve(const std::string& assetPath) const override;
+
+    ArResolvedPath _ResolveForNewAsset(const std::string& assetPath) const override;
+
+    std::string _CreateIdentifierForNewAsset(
+        const std::string& assetPath,
+        const ArResolvedPath& anchorAssetPath) const override;
+
+    ArTimestamp _GetModificationTimestamp(
+        const std::string& assetPath,
+        const ArResolvedPath& resolvedPath) const override;
+
+    std::shared_ptr<ArAsset> _OpenAsset(
+        const ArResolvedPath& resolvedPath) const override;
+#else
     std::string Resolve(const std::string& path) override;
 
     bool IsRelativePath(const std::string& path) override;
@@ -38,6 +54,16 @@ public:
 
     std::shared_ptr<ArAsset> OpenAsset(
         const std::string& resolvedPath) override;
+#endif
+private:
+    bool _ResolveSql(
+        const std::string& assetPath, std::string& resolvedPath) const;
+
+    bool _GetTimestampSql(
+        const std::string& assetPath, double& timestamp) const;
+
+    bool _OpenSqlAsset(
+        const std::string& resolvedPath, std::shared_ptr<ArAsset>& asset) const;
 };
 
 PXR_NAMESPACE_CLOSE_SCOPE
