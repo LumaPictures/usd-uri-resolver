@@ -37,6 +37,25 @@ target_include_directories(${PLUGIN_NAME} SYSTEM PRIVATE "${MYSQL_INCLUDE_DIR}")
 target_include_directories(${PLUGIN_NAME} SYSTEM PRIVATE "${TBB_INCLUDE_DIRS}")
 target_include_directories(${PLUGIN_NAME} SYSTEM PRIVATE "${EXTERNAL_INCLUDE_DIR}")
 
+if (MSVC)
+    # Make sure WinDef.h doesn't define min and max macros which
+    # will conflict with std::min() and std::max()
+    target_compile_definitions(${PLUGIN_NAME} PRIVATE NOMINMAX)
+
+    # The /Zc:inline option strips out the "arch_ctor_<name>" symbols used for
+    # library initialization by ARCH_CONSTRUCTOR starting in Visual Studio 2019,
+    # causing release builds to fail. Disable the option for this and later
+    # versions.
+    #
+    # For more details, see:
+    # https://developercommunity.visualstudio.com/content/problem/914943/zcinline-removes-extern-symbols-inside-anonymous-n.html
+    if (MSVC_VERSION GREATER_EQUAL 1920)
+        target_compile_options(${PLUGIN_NAME} PRIVATE "/Zc:inline-")
+    else()
+        target_compile_options(${PLUGIN_NAME} PRIVATE "/Zc:inline")
+    endif()
+endif()
+
 configure_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/plugInfo.json.in"
     "${CMAKE_CURRENT_BINARY_DIR}/plugInfo.json")

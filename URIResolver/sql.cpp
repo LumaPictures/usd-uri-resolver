@@ -6,9 +6,10 @@
 #include <my_sys.h>
 #include <mysql.h>
 
-#include <time.h>
 #include <algorithm>
+#include <iomanip>
 #include <limits>
+#include <sstream>
 #include <unordered_map>
 
 #include <z85/z85.hpp>
@@ -140,9 +141,9 @@ std::string clean_path(const std::string& path) {
 }
 
 double convert_char_to_time(const char* raw_time) {
-    // GCC 4.8 doesn't have the get_time function of C++11
     std::tm parsed_time = {};
-    strptime(raw_time, "%Y-%m-%d %H:%M:%S", &parsed_time);
+    std::istringstream ss(raw_time);
+    ss >> std::get_time(&parsed_time, "%Y-%m-%d %H:%M:%S");
     parsed_time.tm_isdst = 0;
     // I have to set daylight savings to 0
     // for the asctime function to match the actual time
@@ -214,7 +215,7 @@ double get_timestamp_raw(
     if (mysql_num_rows(result.get()) != 1) { return INVALID_TIME; }
 
     auto row = mysql_fetch_row(result.get());
-    assert(mysql_num_fields(result) == 1);
+    assert(mysql_num_fields(result.get()) == 1);
     auto field = mysql_fetch_field(result.get());
     const auto time = convert_mysql_result_to_time(field, row, 0);
     if (time == INVALID_TIME) {
@@ -563,7 +564,7 @@ std::shared_ptr<ArAsset> SQLConnection::open_asset(
     if (mysql_num_rows(result.get()) != 1) { return nullptr; }
 
     auto row = mysql_fetch_row(result.get());
-    assert(mysql_num_fields(result) == 2);
+    assert(mysql_num_fields(result.get()) == 2);
     auto field = mysql_fetch_field(result.get());
     if (row[0] == nullptr && field->max_length == 0) { return nullptr; }
 
